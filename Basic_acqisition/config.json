@@ -1,0 +1,18 @@
+{
+"AUTO_EXPOSURE" : "Off",
+"EXPOSURE" : 11000,
+"AUTO_GAIN" : "Off",
+"GAIN" : 10,
+"WIDTH" : 1144,
+"HEIGHT" : 426,
+"OFFSET_X" : 8,
+"OFFSET_Y" : 306,
+"BIT_DEPTH" : "Mono8",
+"ADC_BIT_DEPTH" : "Bit8",
+"BINS" : 2,
+"ISP" : "False",
+"BIN_METHOD" : "Average",
+"DECIMATION" : 1,
+"ACQUISITION_MODE" : "trigger",
+"ACQUISITON_TIME": 10
+}

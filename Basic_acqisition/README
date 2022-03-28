@@ -1,0 +1,23 @@
+INSTRUCTIONS FOR USE OF THE BASIC ACQUISITION FUNCTION
+
+PREREUISITES
+SPINNAKER SDK WITH PYSPIN https://www.flir.co.uk/support-center/iis/machine-vision/downloads/spinnaker-sdk-and-firmware-download/
+NUMPY
+
+
+The script allows acquisitions using FLIR machine vision cameras
+There are three modes of acquisition
+
+1) trigger - This mode senses when there is a higher than background signal and starts an acquisition. All frames are accumulated and stopped when background is restored
+2) time - This mode acquires for a user-set time saving each frame individually
+3) continuous - This mode acquires and saves each frame individually until interupted by the user
+
+with the exception of time mode, the programme will not stop running until a keyboard interupt (Ctrl+c) is triggered
+
+For further description of the config parameters see the acompannying document
+
+RUN:
+
+python3 Basic_acquisition.py ./PATH_TO_CONFIG_FILE ./PATH_TO_SAVE_OUTPUT
+
+
