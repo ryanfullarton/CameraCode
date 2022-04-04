@@ -13,7 +13,7 @@ def set_settings(nodemap, config_parameters):
         Each parameter requires retriving a node from the PySpin nodemap object
         then it retrieves the desired value for the parameter from the config file
         finally it sets the node to this value
-        TODO: have the function output the resulting FPS not the set FPS of the camera
+        TDO: investigate bit depth and ADC because I don't think it's setting correctly
     """
 
     #Auto exposure on or off
@@ -102,12 +102,13 @@ def set_settings(nodemap, config_parameters):
 
     # Image offset in the y direction
     node_offsety = ps.CIntegerPtr(nodemap.GetNode('OffsetY'))
-    offsety_to_set = int(((600-config_parameters['HEIGHT'])/2)) + 219 #config_parameters['OFFSET_Y']
+    offsety_to_set = 0 #int(((600-config_parameters['HEIGHT'])/2)) + 219 #config_parameters['OFFSET_Y']
     node_offsety.SetValue(offsety_to_set)
 
     #Return the Frame rate of resulting from the acquisition parameters
-    FPS = ps.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate')).GetValue()
-    return FPS
+    FPS_aq = ps.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate')).GetValue()
+    FPS_res = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate')).GetValue()
+    return FPS_aq, FPS_res
 
 
 def main(output, config):
@@ -146,32 +147,40 @@ def main(output, config):
     #return the node map to set acquisition parameters
     nodemap = cam_1.GetNodeMap()
     #Set the acquisiton paraeters and return the frame rate (see above function)
-    FPS = set_settings(nodemap, config_parameters)
-    print(f"Frame Rate: {FPS}")
+    FPS_aq, FPS_res = set_settings(nodemap, config_parameters)
+    print(f"Acquisition Frame Rate: {round(FPS_aq,0)}   Resulting Frame Rate: {round(FPS_res,0)}")
 
     #Set intialial booleans reqired for acquisition logic
     acquiring = True # is acquiring
+
     cam_1.BeginAcquisition() # start acquisition
     i=0 #begin acquisition count
     first = True # required for determining first frame of an acquisition
     triggered = False #Acquisition trigger for trigger mode off
     start = True # for printing when data is being acquired for trigger mode
     timeout = (int)(cam_1.ExposureTime.GetValue() / 1000 + 10) #determines time between retrieving frames from the camera
+    if (1./FPS_res) + 10 > timeout:
+        timeout = (int) ()(1./FPS_res) +10) # for most cases exposure is the better time to use. This avoids errors trying to get images faster than the FPS
     threshold = 0. # Set threshold for trigger to zero
     b=0 # set counter for number of background images at 0
     image_result = cam.GetNextImage(timeout) #retrieve image from the camera after timeout
     image_data = image_result.GetNDArray() #retrieve the array of image data
     bg_arr = np.zeros(image_data.shape,dtype=np.float32) #set background array to match size of image array with value of 0
     t_end = time.time() + 10 # Set backqroung acquisition time (10s)
-    while time.time()<t_end: # Acquire backgroun averaging over t_end
-        image_result = cam.GetNextImage(timeout)
-        image_data = image_result.GetNDArray()
-        bg_arr += image_data #add image data to background array
-        threshold += np.percentile(image_data, 100) # Set add percentile of pixel values to the threshold
-        image_result.Release() # release image to acquire the next one
-        b+=1 # increment counter to track number of images involved in background
+    if config_parameters["SKIP_BACKGROUND"].lower() !='yes':
+        while time.time()<t_end: # Acquire backgroun averaging over t_end
+            image_result = cam.GetNextImage(timeout)
+            image_data = image_result.GetNDArray()
+            bg_arr += image_data #add image data to background array
+            threshold += np.percentile(image_data, 100) # Set add percentile of pixel values to the threshold
+            image_result.Release() # release image to acquire the next one
+            b+=1 # increment counter to track number of images involved in background
 
-    threshold = (2*threshold)/b # average threshold over all background images
+        threshold = (2*threshold)/b # average threshold over all background images
+    else:
+        b=1
+        threshold=0
+
     np.save(output + "Background" + ".npy", bg_arr/b) #save background array as a numpy .npy file
     print("Ready to acquire")
 
@@ -214,6 +223,8 @@ def main(output, config):
 
         elif config_parameters['ACQUISITION_MODE'].lower() == 'time': # acqisition mode timed - Frame by frame mode
             acquisition_time = config_parameters['ACQUISITON_TIME'] # retrive acquisition time from config file
+            print("Press enter to acquire")
+            input()
             t_stop = time.time() +  acquisition_time #sets the time at which the aquisition should end
             while time.time() < t_stop: # loops until the acquisition should end
                 if start:
