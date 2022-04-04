@@ -1,18 +1,19 @@
 {
 "AUTO_EXPOSURE" : "Off",
-"EXPOSURE" : 11000,
+"EXPOSURE" : 10000,
 "AUTO_GAIN" : "Off",
 "GAIN" : 10,
-"WIDTH" : 1144,
-"HEIGHT" : 426,
-"OFFSET_X" : 8,
-"OFFSET_Y" : 306,
+"WIDTH" : 2448,
+"HEIGHT" : 2048,
+"OFFSET_X" : 0,
+"OFFSET_Y" : 0,
 "BIT_DEPTH" : "Mono8",
 "ADC_BIT_DEPTH" : "Bit8",
-"BINS" : 2,
+"BINS" : 1,
 "ISP" : "False",
 "BIN_METHOD" : "Average",
 "DECIMATION" : 1,
-"ACQUISITION_MODE" : "trigger",
-"ACQUISITON_TIME": 10
+"ACQUISITION_MODE" : "time",
+"ACQUISITON_TIME": 1,
+"SKIP_BACKGROUND": "YES"
 }
