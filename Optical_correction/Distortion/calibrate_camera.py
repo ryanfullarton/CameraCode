@@ -2,7 +2,6 @@ import numpy as np
 import sys
 import cv2 as cv
 import glob
-from PIL import Image
 import matplotlib.pyplot as plt
 
 # termination criteria
@@ -55,11 +54,13 @@ def main(image_directory, rows, columns, square_size):
     print(mtx)
     # Save the calibration matrix
     np.save(image_directory + 'calibration_matrix.npy',mtx)
+    # Save distortion coefficents
+    np.save(image_directory + 'distortion_coefficients.npy', dist)
 
 if len(sys.argv) < 5:
     print('Please enter the following arguments:\n'
     '1) Directory of image files\n'
-    '2) Number of rows in the patter\n'
-    '2) Number of columns in the patter\n'
-    '2) Dimensions of a square side in the pattern\n')
+    '2) Number of rows in the pattern\n'
+    '3) Number of columns in the pattern\n'
+    '4) Dimensions of a square side in the pattern\n')
 main(sys.argv[1],int(sys.argv[2]),int(sys.argv[3]),int(sys.argv[4]))
