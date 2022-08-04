@@ -1,0 +1,54 @@
+{
+"SERIAL_NUMBER" : "21119929",
+"CAMERA_VIEW" : "Top",
+"EXPOSURE_MODE": "Timed",
+"ACQUISITION_MODE" : "trigger",
+"ACQUISITON_TIME": 1, 
+"SKIP_BACKGROUND": "NO",
+
+"AUTO_EXPOSURE" : "Off",
+"EXPOSURE" : 1000,
+
+"GAIN_SELECTOR" : "All",
+"AUTO_GAIN" : "Off",
+"GAIN" : 10,
+
+"TRIGGER_SELECTION" : "Acquisitiosntart",
+"TRIGGER_SOURCE" : "Line5",
+"TRIGGER_ACTIVATION" : "LevelLow",
+"TRIGGER_OVERLAP" : "ReadOut",
+"TRIGGER_DELAY" : 8,
+
+"SHUTTER_MODE" : "Global",
+
+"WIDTH" : 624,
+"HEIGHT" : 488,
+
+"OFFSET_X" : 336,
+"OFFSET_Y" : 280,
+
+"BIT_DEPTH" : "Mono8",
+"ADC_BIT_DEPTH" : "Bit8",
+
+"ISP" : "False",
+"BINNING_SELECTOR" : "All",
+"BINS" : 2,
+"BIN_METHOD" : "Average",
+
+"DECIMATION_SELECTOR": "All",
+"DECIMATION" : 1,
+"DECIMATION_METHOD" : "Discard",
+
+"BLACK_LEVEL_SELECTOR" : "All",
+"BLACK_LEVEL_CLAMPING" : "False",
+"BLACK_LEVEL" : 0.00,
+
+"GAMMA_ENABLE" : "Off",
+"GAMMA": 0,
+
+"SHARPENING_ENABLE" : "Off",
+"AUTO_SHARPENING": "False",
+"SHARPENING" : 0
+
+
+}
