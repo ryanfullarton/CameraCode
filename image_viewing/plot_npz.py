@@ -16,7 +16,7 @@ def pixel_select(event):
     ax.plot(np.flip(a[:,x]),label='y')
     ax.plot(a[y,:], label = 'x')
     ax.xaxis.set_minor_locator(AutoMinorLocator())
-    #ax.set_title("Lateral Profile")
+    ax.set_title("Lateral Profile")
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.tick_params(which='both', width=1)
     ax.tick_params(which='major', length=7)
