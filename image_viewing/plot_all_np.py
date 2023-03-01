@@ -11,8 +11,8 @@ if len(sys.argv) <3:
     print("Enter file directory and indicate whether to convert to tiff (1) or not (2)")
 
 else:
-    files = glob.glob(sys.argv[1] + 'a*')
-    files.sort(key=os.path.getmtime)
+    files = glob.glob(sys.argv[1] + 'a*.npy')
+    files.sort()
     print(files)
 
     #print(files)
@@ -26,11 +26,12 @@ else:
         im = np.int32(np.load(file))
         plt.imshow(im)
         plt.title(file.split('/')[-1][0:-4])
-        plt.pause(0.01)
+        plt.pause(0.004)
         plt.clf()
 
-        
+        print(file.split('/')[-1])
         old_num = int(file.split('/')[-1][12:-4])
+
         if sys.argv[2] == '1':
             if old_num<10:
                 new_name = file.split('/')[-1][0:-5] + '00' + str(old_num)
