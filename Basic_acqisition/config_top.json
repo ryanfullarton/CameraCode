@@ -1,8 +1,8 @@
 {
 "SERIAL_NUMBER" : "21119929",
 "CAMERA_VIEW" : "Top",
-"EXPOSURE_MODE": "Timed",
-"ACQUISITION_MODE" : "trigger",
+"EXPOSURE_MODE": "TriggerWidth",
+"ACQUISITION_MODE" : "external",
 "ACQUISITON_TIME": 1, 
 "SKIP_BACKGROUND": "NO",
 
@@ -15,13 +15,13 @@
 
 "TRIGGER_SELECTION" : "Acquisitiosntart",
 "TRIGGER_SOURCE" : "Line5",
-"TRIGGER_ACTIVATION" : "LevelLow",
+"TRIGGER_ACTIVATION" : "LevelHigh",
 "TRIGGER_OVERLAP" : "ReadOut",
-"TRIGGER_DELAY" : 8,
+"TRIGGER_DELAY" : 12,
 
 "SHUTTER_MODE" : "Global",
 
-"WIDTH" : 624,
+"WIDTH" : 616,
 "HEIGHT" : 488,
 
 "OFFSET_X" : 336,
