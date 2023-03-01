@@ -6,6 +6,7 @@ import sys
 import numpy as np
 
 def write_log_file(nodemap, config_parameters,SN, output):
+
     """ This function reads the current settings in the nodemap and writes them to a logfile in the output directory
         Can be used for debugging the set_settings function or acquisition record keeping
     """
@@ -134,9 +135,14 @@ def set_settings(nodemap, config_parameters,output):
 
         The funtion produces a text files with the settings from the camera before acquisition
 
-        TODO: investigate bit depth and ADC because I don't think it's setting correctly*
         TODO: Debug sharpening and except for non-write errors
     """
+    SN = ps.CStringPtr(nodemap.GetNode('DeviceSerialNumber')).GetValue()
+    print(f'Writing Camera {SN} settings')
+
+    node_frame_rate_enable = ps.CBooleanPtr(nodemap.GetNode('AcquisitionFrameRateEnable'))
+    frame_rate_enable = False
+    node_frame_rate_enable.SetValue(frame_rate_enable)
 
     node_exposure_mode = ps.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
     exposure_mode_set = node_exposure_mode.GetEntryByName(config_parameters['EXPOSURE_MODE'])
@@ -264,9 +270,8 @@ def set_settings(nodemap, config_parameters,output):
 
     except:
         pass
-    #print( ps.CEnumerationPtr(nodemap.GetNode('PixelFormat')).GetCurrentEntry()
-    #print(ps.CEnumerationPtr(nodemap.GetNode('AdcBitDepth')).GetValue())
-        #Number of bins per pixel (1-4)
+    
+    #Number of bins per pixel (1-4)
     vert_binning = ps.CIntegerPtr(nodemap.GetNode('BinningVertical'))
     vert_binning_to_set = 1
     vert_binning.SetValue(vert_binning_to_set)
@@ -367,7 +372,7 @@ def set_settings(nodemap, config_parameters,output):
     FPS_aq = ps.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate')).GetValue()
     FPS_res = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate')).GetValue()
 
-    SN = ps.CStringPtr(nodemap.GetNode('DeviceSerialNumber')).GetValue()
+    
     print(f'Generating log file for {SN}')
 
     write_log_file(nodemap, config_parameters, SN, output)
@@ -388,8 +393,23 @@ def set_settings(nodemap, config_parameters,output):
         node_exposure_time = ps.CFloatPtr(nodemap.GetNode('ExposureTime'))
         time_to_set = config_parameters['EXPOSURE']
         node_exposure_time.SetValue(time_to_set)
+
+
     return FPS_aq, FPS_res
 
+def leading_zeros(i):
+    if i <10:
+        number = '0000' + str(i)
+    elif i < 100:
+        number = '000' + str(i)
+    elif i < 1000:
+        number = '00' +str(i)
+    elif i < 10000:
+        number =  '0' + str(i)
+    else:
+        number = str(i)
+    
+    return number
 
 def main(output, config_1, config_2):
     """
@@ -445,27 +465,54 @@ def main(output, config_1, config_2):
             #Define camera 1 as a camera object within the API and initilise it
             cam_1 = camera
             cam_1.Init()
-            print(f'Writing Camera {camera_SN} settings')
-
             #return the node map to set acquisition parameters
             nodemap_1 = cam_1.GetNodeMap()
-            #Set the acquisiton paraeters and return the frame rate (see above function)
-            FPS_aq, FPS_res = set_settings(nodemap_1, config_parameters_1, output)
-            print(f'Camera 1 ({camera_SN}):')
-            print(f"Acquisition Frame Rate: {round(FPS_aq,0)}   Resulting Frame Rate: {round(FPS_res,0)}")
+            cam_1_SN = camera_SN
+
         if mode == 'multi':
             if camera_SN == config_parameters_2['SERIAL_NUMBER']:
-                print(f'Writing Camera {camera_SN} settings')
                 #Define camera 1 as a camera object within the API and initilise it
                 cam_2 = camera
                 cam_2.Init()
 
                 #return the node map to set acquisition parameters
                 nodemap_2 = cam_2.GetNodeMap()
-                #Set the acquisiton paraeters and return the frame rate (see above function)
-                FPS_aq, FPS_res = set_settings(nodemap_2, config_parameters_2, output)
-                print(f'Camera 2 ({camera_SN}):')
-                print(f"Acquisition Frame Rate: {round(FPS_aq,0)}   Resulting Frame Rate: {round(FPS_res,0)}")
+                cam_2_SN = camera_SN
+
+    #Set the acquisiton paraeters and return the frame rate (see above function)
+    
+    FPS_aq_1, FPS_res_1 = set_settings(nodemap_1, config_parameters_1, output)
+    
+    if mode == 'multi':
+        FPS_aq_2, FPS_res_2 = set_settings(nodemap_2, config_parameters_2, output)
+        if FPS_res_2 > FPS_res_1:
+
+            node_frame_rate_enable = ps.CBooleanPtr(nodemap_2.GetNode('AcquisitionFrameRateEnable'))
+            frame_rate_enable = True
+            node_frame_rate_enable.SetValue(frame_rate_enable)
+
+            FPS_node = ps.CFloatPtr(nodemap_2.GetNode('AcquisitionFrameRate'))
+            FPS_node.SetValue(FPS_res_1)
+
+            FPS_res_2 = ps.CFloatPtr(nodemap_2.GetNode('AcquisitionResultingFrameRate')).GetValue()
+
+        elif FPS_res_1 > FPS_res_2:
+
+            node_frame_rate_enable = ps.CBooleanPtr(nodemap_1.GetNode('AcquisitionFrameRateEnable'))
+            frame_rate_enable = True
+            node_frame_rate_enable.SetValue(frame_rate_enable)
+
+            FPS_node = ps.CFloatPtr(nodemap_1.GetNode('AcquisitionFrameRate'))
+            FPS_node.SetValue(FPS_res_2)
+
+            FPS_res_1 = ps.CFloatPtr(nodemap_1.GetNode('AcquisitionResultingFrameRate')).GetValue()
+
+
+    print(f'Camera 1 ({cam_1_SN}):')
+    print(f"Acquisition Frame Rate: {round(FPS_aq_1,0)}   Resulting Frame Rate: {round(FPS_res_1,0)}")
+    if mode == 'multi':
+        print(f'Camera 2 ({cam_2_SN}):')
+        print(f"Acquisition Frame Rate: {round(FPS_aq_2,0)}   Resulting Frame Rate: {round(FPS_res_2,0)}")
 
     cam_1.BeginAcquisition() # start acquisition
     if mode == 'multi':
@@ -478,12 +525,12 @@ def main(output, config_1, config_2):
     triggered = False #Acquisition trigger for trigger mode off
     start = True # for printing when data is being acquired for trigger mode
     if config_parameters_1["ACQUISITION_MODE"].lower() == 'external':
-        timeout = (int) ((1./FPS_res) +10)
+        timeout = (int) ((1./FPS_res_1) + 60000)
     else:
-        timeout = (int)(cam_1.ExposureTime.GetValue() / 1000 + 10) #determines time between retrieving frames from the camera
-    if (1./FPS_res) + 10 > timeout:
+        timeout = (int)(cam_1.ExposureTime.GetValue() / 1000 + 60000) #determines time between retrieving frames from the camera
+    if (1./FPS_res_1) + 10 > timeout:
         #print(timeout)
-        timeout = (int) ((1./FPS_res) +10) # for most cases exposure is the better time to use. This avoids errors trying to get images faster than the FPS
+        timeout = (int) ((1./FPS_res_1) +60000) # for most cases exposure is the better time to use. This avoids errors trying to get images faster than the FPS
         #print(timeout)
     
     
@@ -548,7 +595,7 @@ def main(output, config_1, config_2):
             node_exposure_mode.SetIntValue(exposure_mode_set.GetValue())
             node_trigger_mode = nodemap_2.GetNode('TriggerMode')
             #trigger_mode_set = node_trigger_mode.GetEntryByName('On')
-         #   node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
+            #node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
             cam_2.BeginAcquisition()
         
 
@@ -589,16 +636,7 @@ def main(output, config_1, config_2):
                         image_data_2 = image_result_2.GetNDArray() # retunr image array
                         arr_2 = arr_2 + image_data_2 # add image array to acquisition array
                     if np.percentile(image_data_1,98) <= threshold_1: # checks if image data is below background (i.e. no scintillation light)
-                        if i <10:
-                            number = '0000' + str(i)
-                        elif i < 100:
-                            number = '000' + str(i)
-                        elif i < 1000:
-                            number = '00' +str(i)
-                        elif i < 10000:
-                            number =  '0' + str(i)
-                        else:
-                            number = str(i)
+                        number = leading_zeros(i)
                         if mode == 'multi':
                             if np.percentile(image_data_2,98) <= threshold_2: # checks if image data is below background (i.e. no scintillation light)
                                 triggered =False # stop acuisition
@@ -617,8 +655,7 @@ def main(output, config_1, config_2):
                             print("Acqiusition stopped")
                             np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", arr_1) # save as numpy .npy file
                             i+=1 #incremet the number of acquisitions for unique file names
-                            print("image saved\n"
-                                 "Ready to acquire")
+                            print("image saved")
                     if triggered: # releases image to allow the next one if still triggered
                         image_result_1.Release()
                         if mode == 'multi':
@@ -647,7 +684,7 @@ def main(output, config_1, config_2):
             try:
                 acquisition_time = config_parameters_1['ACQUISITON_TIME'] # retrive acquisition time from config file
                 print("Press enter to acquire")
-                input()
+                #input()
                 t_stop = time.time() +  acquisition_time #sets the time at which the aquisition should end
                 while time.time() < t_stop: # loops until the acquisition should end
                     if start:
@@ -655,16 +692,7 @@ def main(output, config_1, config_2):
                     start=False
                     image_result_1 = cam_1.GetNextImage(timeout) # Get image
                     image_data_1 = image_result_1.GetNDArray() # Return image array
-                    if i <10:
-                            number = '0000' + str(i)
-                    elif i < 100:
-                        number = '000' + str(i)
-                    elif i < 1000:
-                        number = '00' +str(i)
-                    elif i < 10000:
-                        number =  '0' + str(i)
-                    else:
-                        number = str(i)
+                    number == leading_zeros(i)
                     if mode == 'multi':
                         image_result_2 = cam_2.GetNextImage(timeout) # Get image
                         image_data_2 = image_result_2.GetNDArray()
@@ -692,16 +720,7 @@ def main(output, config_1, config_2):
                 start=False
                 image_result_1 = cam_1.GetNextImage(timeout) # Get image
                 image_data_1 = image_result_1.GetNDArray() # Return image array
-                if i <10:
-                    number = '0000' + str(i)
-                elif i < 100:
-                    number = '000' + str(i)
-                elif i < 1000:
-                    number = '00' +str(i)
-                elif i < 10000:
-                    number =  '0' + str(i)
-                else:
-                    number = str(i)
+                number = leading_zeros(i)
                 np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_1) #save image as numpy .npy file
                 if mode == 'multi':
                     image_result_2 = cam_2.GetNextImage(timeout)
@@ -778,25 +797,22 @@ def main(output, config_1, config_2):
                 image_data_1 = image_result_1.GetNDArray() #return image array
                 if mode == 'multi':
                     image_data_2 = image_result_2.GetNDArray()
-                if i <10:
-                    number = '0000' + str(i)
-                elif i < 100:
-                    number = '000' + str(i)
-                elif i < 1000:
-                    number = '00' +str(i)
-                elif i < 10000:
-                    number =  '0' + str(i)
-                else:
-                    number = str(i)
+                number = leading_zeros(i)
                 np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", image_data_1) # save as numpy .npy file
                 if mode == 'multi':
                     np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "acquisition_" + number + '.npy', image_data_2)
                 i+=1 #incremet the number of acquisitions for unique file names
                 print("Image saved")
-                image_result_1.Release()
+                try:
+                    image_result_1.Release()
+                except:
+                    pass
+                
                 if mode == 'multi':
-                    image_result_2.Release()
-
+                    try:
+                        image_result_2.Release()
+                    except:
+                        pass
             except KeyboardInterrupt:
                 acquiring = False
                 print("Acquisition Stopped")
@@ -806,6 +822,10 @@ def main(output, config_1, config_2):
             acquiring = False
 
     print("\nEnd of session")
+
+    time_30 = time.time() + 30
+    while time.time() < time_30:
+        pass
 
     # These commands disconnect the camera and end the PySpin connection removing residual data
     try:
