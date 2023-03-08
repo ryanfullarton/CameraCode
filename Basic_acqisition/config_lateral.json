@@ -21,11 +21,11 @@
 
 "SHUTTER_MODE" : "Global",
 
-"WIDTH" : 608,
-"HEIGHT" : 468,
+"WIDTH" : 600,
+"HEIGHT" : 484,
 
 "OFFSET_X" : 336,
-"OFFSET_Y" : 280,
+"OFFSET_Y" : 274,
 
 "BIT_DEPTH" : "Mono8",
 "ADC_BIT_DEPTH" : "Bit8",
