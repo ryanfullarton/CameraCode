@@ -429,7 +429,7 @@ def main(output, config_1, config_2):
     """
     with open(output + "acquisition_log.txt",'w') as aq_log:
         #open the config file
-        aq_log.write(f'Started: {datetime.now()}')
+        aq_log.write(f'Started: {datetime.now()} \n')
         with open(config_1, "r") as f1:
             config_parameters_1 = json.load(f1)
         
@@ -570,13 +570,13 @@ def main(output, config_1, config_2):
 
             threshold_1 = (2*threshold_1)/b # average threshold over all background images
             threshold_2 = (2*threshold_2)/b # average threshold over all background images
-            aq_log.write(f'Background acquired: {datetime.now()}')
+            aq_log.write(f'Background acquired: {datetime.now()} \n')
         else:
             print('Background skipped')
             b=1
             threshold_1 = 0
             threshold_2 = 0
-            aq_log.write(f'Background skipped: {datetime.now()}')
+            aq_log.write(f'Background skipped: {datetime.now()} \n')
             
         np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "Background" + ".npy", bg_arr_1/b) #save background array as a numpy .npy file
         if mode == 'multi':
@@ -604,7 +604,7 @@ def main(output, config_1, config_2):
                 #node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
                 cam_2.BeginAcquisition()
             
-        aq_log.write(f'Ready to acquire: {datetime.now()}')
+        aq_log.write(f'Ready to acquire: {datetime.now()} \n')
 
         #t_test_end = time.time() + 10 # used to test the frame rate over 10 seconds
         while acquiring: # will loop while acquiring is True
@@ -663,7 +663,7 @@ def main(output, config_1, config_2):
                                 i+=1 #incremet the number of acquisitions for unique file names
                                 print("image saved")
 
-                            aq_log.write(f'Acquired image {number}: {datetime.now()}')
+                            aq_log.write(f'Acquired image {number}: {datetime.now()} \n')
                         if triggered: # releases image to allow the next one if still triggered
                             image_result_1.Release()
                             if mode == 'multi':
@@ -707,7 +707,7 @@ def main(output, config_1, config_2):
                         np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_1) # save image as numpy .npy file
                         if mode == 'multi':
                             np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_2) # save image as numpy .npy file
-                        aq_log.write(f'Acquired image {number}: {datetime.now()}')
+                        aq_log.write(f'Acquired image {number}: {datetime.now()} \n')
                         i+=1 # increment the acquisition counter for unique file names
                         image_result_1.Release() # release image so the next one can be allowed to be read
                         if mode == 'multi':
@@ -726,7 +726,7 @@ def main(output, config_1, config_2):
                     if start:
                         input()
                         print("Acquiring data")
-                    aq_log.write(f'Started continuous acquisition: {datetime.now()}')
+                    aq_log.write(f'Started continuous acquisition: {datetime.now()} \n')
                     start=False
                     image_result_1 = cam_1.GetNextImage(timeout) # Get image
                     image_data_1 = image_result_1.GetNDArray() # Return image array
@@ -736,7 +736,7 @@ def main(output, config_1, config_2):
                         image_result_2 = cam_2.GetNextImage(timeout)
                         image_data_2 = image_result_2.GetNDArray()
                         np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_2)
-                    aq_log.write(f'Acquired frame {number}: {datetime.now()}')
+                    aq_log.write(f'Acquired frame {number}: {datetime.now()} \n')
                     i+=1 # increment acquisition counter for unique file names
                     image_result_1.Release() # release image so the next one can be read
                     if mode == 'multi':
@@ -803,10 +803,10 @@ def main(output, config_1, config_2):
                         
                         print("Trigger Ready")
 
-                    aq_log.write(f'Trigger Ready: {datetime.now()}')
-                    image_result_1 = cam_1.GetNextImage(300000000) #get image
+                    aq_log.write(f'Trigger Ready: {datetime.now()} \n')
+                    image_result_1 = cam_1.GetNextImage(3000000) #get image
                     if mode == 'multi':
-                        image_result_2 = cam_2.GetNextImage(300000000)
+                        image_result_2 = cam_2.GetNextImage(3000000)
                     image_data_1 = image_result_1.GetNDArray() #return image array
                     if mode == 'multi':
                         image_data_2 = image_result_2.GetNDArray()
@@ -816,7 +816,7 @@ def main(output, config_1, config_2):
                         np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "acquisition_" + number + '.npy', image_data_2)
                     i+=1 #incremet the number of acquisitions for unique file names
                     print("Image saved")
-                    aq_log.write(f'Acquired image {number}: {datetime.now()}')
+                    aq_log.write(f'Acquired image {number}: {datetime.now()} \n')
                     try:
                         image_result_1.Release()
                     except:
@@ -834,7 +834,7 @@ def main(output, config_1, config_2):
             else: # Stops session when no valid acquisition mode is in the config file
                 print("Invalid acquisition mode")
                 acquiring = False
-        aq_log.write(f'Acquisition stopped: {datetime.now()}')
+        aq_log.write(f'Acquisition stopped: {datetime.now()} \n')
         print("\nEnd of session")
 
         time_30 = time.time() + 30
@@ -870,7 +870,7 @@ def main(output, config_1, config_2):
         cam_list.Clear()
         camera_list.clear()
         system.ReleaseInstance()
-        aq_log.write(f'Released: {datetime.now()}')
+        aq_log.write(f'Released: {datetime.now()} \n')
         aq_log.close()
 
 
