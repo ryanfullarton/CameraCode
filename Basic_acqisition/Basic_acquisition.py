@@ -427,7 +427,7 @@ def main(output, config_1, config_2):
         TODO: Have the option to save frame by frame or with accumulated acquisition for all operating types
         TODO: turn leading zeros into a function to call each time rather than copy paste
     """
-    with open(output + "acquisition_log.txt",w) as aq_log:
+    with open(output + "acquisition_log.txt",'w') as aq_log:
         #open the config file
         aq_log.write(f'Started: {datetime.now()}')
         with open(config_1, "r") as f1:
@@ -871,7 +871,7 @@ def main(output, config_1, config_2):
         camera_list.clear()
         system.ReleaseInstance()
         aq_log.write(f'Released: {datetime.now()}')
-        aq_log,close()
+        aq_log.close()
 
 
 #Checks the number of arguments entered is acceptable
