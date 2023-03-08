@@ -4,6 +4,7 @@ import time
 import json
 import sys
 import numpy as np
+from datetime import datetime
 
 def write_log_file(nodemap, config_parameters,SN, output):
 
@@ -426,437 +427,451 @@ def main(output, config_1, config_2):
         TODO: Have the option to save frame by frame or with accumulated acquisition for all operating types
         TODO: turn leading zeros into a function to call each time rather than copy paste
     """
-    #open the config file
-    with open(config_1, "r") as f1:
-        config_parameters_1 = json.load(f1)
-    
-    try:
-        os.mkdir(output + config_parameters_1["CAMERA_VIEW"])
-    except FileExistsError:
-        pass
-
-    #create empty list for the cameras
-    camera_list = []
-    #start an instance of the PySpin API
-    system = ps.System.GetInstance()
-    # Get list of connected cameras and enumerate them, adding to the camera list
-    cam_list = system.GetCameras()
-    for i, cam in enumerate(cam_list):
-        camera_list.append(cam)
-
-    if len(camera_list) > 1:
-        mode = 'multi'
-        with open(config_2, "r") as f2:
-            config_parameters_2 = json.load(f2)
-            try:
-                os.mkdir(output + config_parameters_2["CAMERA_VIEW"])
-            except FileExistsError:
-                pass
-    else:
-        mode = 'single'
-
-    for camera in camera_list:
-        camera.Init()
-        temp_nodemap = camera.GetNodeMap()
-        camera_SN = ps.CStringPtr(temp_nodemap.GetNode('DeviceSerialNumber')).GetValue()
+    with open(output + "acquisition_log.txt",w) as aq_log:
+        #open the config file
+        aq_log.write(f'Started: {datetime.now()}')
+        with open(config_1, "r") as f1:
+            config_parameters_1 = json.load(f1)
         
-        camera.DeInit()
-        if camera_SN == config_parameters_1['SERIAL_NUMBER']:
-            #Define camera 1 as a camera object within the API and initilise it
-            cam_1 = camera
-            cam_1.Init()
-            #return the node map to set acquisition parameters
-            nodemap_1 = cam_1.GetNodeMap()
-            cam_1_SN = camera_SN
+        try:
+            os.mkdir(output + config_parameters_1["CAMERA_VIEW"])
+        except FileExistsError:
+            pass
 
-        if mode == 'multi':
-            if camera_SN == config_parameters_2['SERIAL_NUMBER']:
+        #create empty list for the cameras
+        camera_list = []
+        #start an instance of the PySpin API
+        system = ps.System.GetInstance()
+        # Get list of connected cameras and enumerate them, adding to the camera list
+        cam_list = system.GetCameras()
+        for i, cam in enumerate(cam_list):
+            camera_list.append(cam)
+
+        if len(camera_list) > 1:
+            mode = 'multi'
+            with open(config_2, "r") as f2:
+                config_parameters_2 = json.load(f2)
+                try:
+                    os.mkdir(output + config_parameters_2["CAMERA_VIEW"])
+                except FileExistsError:
+                    pass
+        else:
+            mode = 'single'
+
+        for camera in camera_list:
+            camera.Init()
+            temp_nodemap = camera.GetNodeMap()
+            camera_SN = ps.CStringPtr(temp_nodemap.GetNode('DeviceSerialNumber')).GetValue()
+            
+            camera.DeInit()
+            if camera_SN == config_parameters_1['SERIAL_NUMBER']:
                 #Define camera 1 as a camera object within the API and initilise it
-                cam_2 = camera
-                cam_2.Init()
-
+                cam_1 = camera
+                cam_1.Init()
                 #return the node map to set acquisition parameters
-                nodemap_2 = cam_2.GetNodeMap()
-                cam_2_SN = camera_SN
+                nodemap_1 = cam_1.GetNodeMap()
+                cam_1_SN = camera_SN
 
-    #Set the acquisiton paraeters and return the frame rate (see above function)
-    
-    FPS_aq_1, FPS_res_1 = set_settings(nodemap_1, config_parameters_1, output)
-    
-    if mode == 'multi':
-        FPS_aq_2, FPS_res_2 = set_settings(nodemap_2, config_parameters_2, output)
-        if FPS_res_2 > FPS_res_1:
-
-            node_frame_rate_enable = ps.CBooleanPtr(nodemap_2.GetNode('AcquisitionFrameRateEnable'))
-            frame_rate_enable = True
-            node_frame_rate_enable.SetValue(frame_rate_enable)
-
-            FPS_node = ps.CFloatPtr(nodemap_2.GetNode('AcquisitionFrameRate'))
-            FPS_node.SetValue(FPS_res_1)
-
-            FPS_res_2 = ps.CFloatPtr(nodemap_2.GetNode('AcquisitionResultingFrameRate')).GetValue()
-
-        elif FPS_res_1 > FPS_res_2:
-
-            node_frame_rate_enable = ps.CBooleanPtr(nodemap_1.GetNode('AcquisitionFrameRateEnable'))
-            frame_rate_enable = True
-            node_frame_rate_enable.SetValue(frame_rate_enable)
-
-            FPS_node = ps.CFloatPtr(nodemap_1.GetNode('AcquisitionFrameRate'))
-            FPS_node.SetValue(FPS_res_2)
-
-            FPS_res_1 = ps.CFloatPtr(nodemap_1.GetNode('AcquisitionResultingFrameRate')).GetValue()
-
-
-    print(f'Camera 1 ({cam_1_SN}):')
-    print(f"Acquisition Frame Rate: {round(FPS_aq_1,0)}   Resulting Frame Rate: {round(FPS_res_1,0)}")
-    if mode == 'multi':
-        print(f'Camera 2 ({cam_2_SN}):')
-        print(f"Acquisition Frame Rate: {round(FPS_aq_2,0)}   Resulting Frame Rate: {round(FPS_res_2,0)}")
-
-    cam_1.BeginAcquisition() # start acquisition
-    if mode == 'multi':
-        cam_2.BeginAcquisition()
-
-    #Set intialial booleans reqired for acquisition logic
-    acquiring = True # is acquiring
-    i=0 #begin acquisition count
-    first = True # required for determining first frame of an acquisition
-    triggered = False #Acquisition trigger for trigger mode off
-    start = True # for printing when data is being acquired for trigger mode
-    if config_parameters_1["ACQUISITION_MODE"].lower() == 'external':
-        timeout = (int) ((1./FPS_res_1) + 60000)
-    else:
-        timeout = (int)(cam_1.ExposureTime.GetValue() / 1000 + 60000) #determines time between retrieving frames from the camera
-    if (1./FPS_res_1) + 10 > timeout:
-        #print(timeout)
-        timeout = (int) ((1./FPS_res_1) +60000) # for most cases exposure is the better time to use. This avoids errors trying to get images faster than the FPS
-        #print(timeout)
-    
-    
-    threshold_1 = 0. # Set threshold for trigger to zero
-    threshold_2 = 0. # Set threshold for trigger to zero
-    b=0 # set counter for number of background images at 0
-    image_result_1 = cam_1.GetNextImage(timeout) #retrieve image from the camera after timeout
-    image_data_1 = image_result_1.GetNDArray() #retrieve the array of image data
-    bg_arr_1 = np.zeros(image_data_1.shape,dtype=np.float32) #set background array to match size of image array with value of 0
-    
-    if mode == 'multi':
-        image_result_2 = cam_2.GetNextImage(timeout) #retrieve image from the camera after timeout
-        image_data_2 = image_result_2.GetNDArray() #retrieve the array of image data
-        bg_arr_2 = np.zeros(image_data_2.shape,dtype=np.float32) #set background array to match size of image array with value of 0
-    external_3v = False
-    t_end = time.time() + 10 # Set backqroung acquisition time (10s)
-    percentile = 98
-    if config_parameters_1["SKIP_BACKGROUND"].lower() !='yes':
-        print('Acquiring Background')
-        while time.time()<t_end: # Acquire backgroun averaging over t_end
-            image_result_1 = cam_1.GetNextImage(timeout)
-            image_data_1 = image_result_1.GetNDArray()
-            bg_arr_1 += image_data_1 #add image data to background array
-            threshold_1 += np.percentile(image_data_1, percentile) # Set add percentile of pixel values to the threshold
-            image_result_1.Release() # release image to acquire the next one
             if mode == 'multi':
-                image_result_2 = cam_2.GetNextImage(timeout)
-                image_data_2 = image_result_2.GetNDArray()
-                bg_arr_2 += image_data_2 #add image data to background array
-                threshold_2 += np.percentile(image_data_2, percentile) # Set add percentile of pixel values to the threshold
-                image_result_2.Release()
-            b+=1 # increment counter to track number of images involved in background
+                if camera_SN == config_parameters_2['SERIAL_NUMBER']:
+                    #Define camera 1 as a camera object within the API and initilise it
+                    cam_2 = camera
+                    cam_2.Init()
 
-        threshold_1 = (2*threshold_1)/b # average threshold over all background images
-        threshold_2 = (2*threshold_2)/b # average threshold over all background images
-    else:
-        print('Background skipped')
-        b=1
-        threshold_1 = 0
-        threshold_2 = 0
+                    #return the node map to set acquisition parameters
+                    nodemap_2 = cam_2.GetNodeMap()
+                    cam_2_SN = camera_SN
+
+        #Set the acquisiton paraeters and return the frame rate (see above function)
         
-    np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "Background" + ".npy", bg_arr_1/b) #save background array as a numpy .npy file
-    if mode == 'multi':
-        np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "Background" + ".npy", bg_arr_2/b)
-
-    print("Ready to acquire")
-
-    if config_parameters_1['ACQUISITION_MODE'].lower() == 'external' or (mode == 'multi' and config_parameters_2['ACQUISITION_MODE'].lower == 'external'):
-        cam_1.EndAcquisition()
-        #Change back to timed mode no matter what otherwise a background can't be taken
-        node_exposure_mode = ps.CEnumerationPtr(nodemap_1.GetNode('ExposureMode'))
-        exposure_mode_set = node_exposure_mode.GetEntryByName(config_parameters_1['EXPOSURE_MODE'])
-        node_exposure_mode.SetIntValue(exposure_mode_set.GetValue())
-        node_trigger_mode = nodemap_1.GetNode('TriggerMode')
-        #trigger_mode_set = node_trigger_mode.GetEntryByName('On')
-        #node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
-        cam_1.BeginAcquisition()
+        FPS_aq_1, FPS_res_1 = set_settings(nodemap_1, config_parameters_1, output)
+        
+            
         if mode == 'multi':
-            cam_2.EndAcquisition()
-            node_exposure_mode = ps.CEnumerationPtr(nodemap_2.GetNode('ExposureMode'))
-            exposure_mode_set = node_exposure_mode.GetEntryByName(config_parameters_2['EXPOSURE_MODE'])
+            FPS_aq_2, FPS_res_2 = set_settings(nodemap_2, config_parameters_2, output)
+            if FPS_res_2 > FPS_res_1:
+
+                node_frame_rate_enable = ps.CBooleanPtr(nodemap_2.GetNode('AcquisitionFrameRateEnable'))
+                frame_rate_enable = True
+                node_frame_rate_enable.SetValue(frame_rate_enable)
+
+                FPS_node = ps.CFloatPtr(nodemap_2.GetNode('AcquisitionFrameRate'))
+                FPS_node.SetValue(FPS_res_1)
+
+                FPS_res_2 = ps.CFloatPtr(nodemap_2.GetNode('AcquisitionResultingFrameRate')).GetValue()
+
+            elif FPS_res_1 > FPS_res_2:
+
+                node_frame_rate_enable = ps.CBooleanPtr(nodemap_1.GetNode('AcquisitionFrameRateEnable'))
+                frame_rate_enable = True
+                node_frame_rate_enable.SetValue(frame_rate_enable)
+
+                FPS_node = ps.CFloatPtr(nodemap_1.GetNode('AcquisitionFrameRate'))
+                FPS_node.SetValue(FPS_res_2)
+
+                FPS_res_1 = ps.CFloatPtr(nodemap_1.GetNode('AcquisitionResultingFrameRate')).GetValue()
+
+
+        print(f'Camera 1 ({cam_1_SN}):')
+        print(f"Acquisition Frame Rate: {round(FPS_aq_1,0)}   Resulting Frame Rate: {round(FPS_res_1,0)}")
+        if mode == 'multi':
+            print(f'Camera 2 ({cam_2_SN}):')
+            print(f"Acquisition Frame Rate: {round(FPS_aq_2,0)}   Resulting Frame Rate: {round(FPS_res_2,0)}")
+
+        cam_1.BeginAcquisition() # start acquisition
+        if mode == 'multi':
+            cam_2.BeginAcquisition()
+
+        #Set intialial booleans reqired for acquisition logic
+        acquiring = True # is acquiring
+        i=0 #begin acquisition count
+        first = True # required for determining first frame of an acquisition
+        triggered = False #Acquisition trigger for trigger mode off
+        start = True # for printing when data is being acquired for trigger mode
+        if config_parameters_1["ACQUISITION_MODE"].lower() == 'external':
+            timeout = (int) ((1./FPS_res_1) + 60000)
+        else:
+            timeout = (int)(cam_1.ExposureTime.GetValue() / 1000 + 60000) #determines time between retrieving frames from the camera
+        if (1./FPS_res_1) + 10 > timeout:
+            #print(timeout)
+            timeout = (int) ((1./FPS_res_1) +60000) # for most cases exposure is the better time to use. This avoids errors trying to get images faster than the FPS
+            #print(timeout)
+        
+        
+        threshold_1 = 0. # Set threshold for trigger to zero
+        threshold_2 = 0. # Set threshold for trigger to zero
+        b=0 # set counter for number of background images at 0
+        image_result_1 = cam_1.GetNextImage(timeout) #retrieve image from the camera after timeout
+        image_data_1 = image_result_1.GetNDArray() #retrieve the array of image data
+        bg_arr_1 = np.zeros(image_data_1.shape,dtype=np.float32) #set background array to match size of image array with value of 0
+        
+        if mode == 'multi':
+            image_result_2 = cam_2.GetNextImage(timeout) #retrieve image from the camera after timeout
+            image_data_2 = image_result_2.GetNDArray() #retrieve the array of image data
+            bg_arr_2 = np.zeros(image_data_2.shape,dtype=np.float32) #set background array to match size of image array with value of 0
+        external_3v = False
+        t_end = time.time() + 10 # Set backqroung acquisition time (10s)
+        percentile = 98
+        if config_parameters_1["SKIP_BACKGROUND"].lower() !='yes':
+            print('Acquiring Background')
+            while time.time()<t_end: # Acquire backgroun averaging over t_end
+                image_result_1 = cam_1.GetNextImage(timeout)
+                image_data_1 = image_result_1.GetNDArray()
+                bg_arr_1 += image_data_1 #add image data to background array
+                threshold_1 += np.percentile(image_data_1, percentile) # Set add percentile of pixel values to the threshold
+                image_result_1.Release() # release image to acquire the next one
+                if mode == 'multi':
+                    image_result_2 = cam_2.GetNextImage(timeout)
+                    image_data_2 = image_result_2.GetNDArray()
+                    bg_arr_2 += image_data_2 #add image data to background array
+                    threshold_2 += np.percentile(image_data_2, percentile) # Set add percentile of pixel values to the threshold
+                    image_result_2.Release()
+                b+=1 # increment counter to track number of images involved in background
+
+            threshold_1 = (2*threshold_1)/b # average threshold over all background images
+            threshold_2 = (2*threshold_2)/b # average threshold over all background images
+            aq_log.write(f'Background acquired: {datetime.now()}')
+        else:
+            print('Background skipped')
+            b=1
+            threshold_1 = 0
+            threshold_2 = 0
+            aq_log.write(f'Background skipped: {datetime.now()}')
+            
+        np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "Background" + ".npy", bg_arr_1/b) #save background array as a numpy .npy file
+        if mode == 'multi':
+            np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "Background" + ".npy", bg_arr_2/b)
+        
+        print("Ready to acquire")
+
+        if config_parameters_1['ACQUISITION_MODE'].lower() == 'external' or (mode == 'multi' and config_parameters_2['ACQUISITION_MODE'].lower == 'external'):
+            cam_1.EndAcquisition()
+            #Change back to timed mode no matter what otherwise a background can't be taken
+            node_exposure_mode = ps.CEnumerationPtr(nodemap_1.GetNode('ExposureMode'))
+            exposure_mode_set = node_exposure_mode.GetEntryByName(config_parameters_1['EXPOSURE_MODE'])
             node_exposure_mode.SetIntValue(exposure_mode_set.GetValue())
-            node_trigger_mode = nodemap_2.GetNode('TriggerMode')
+            node_trigger_mode = nodemap_1.GetNode('TriggerMode')
             #trigger_mode_set = node_trigger_mode.GetEntryByName('On')
             #node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
-            cam_2.BeginAcquisition()
-        
+            cam_1.BeginAcquisition()
+            if mode == 'multi':
+                cam_2.EndAcquisition()
+                node_exposure_mode = ps.CEnumerationPtr(nodemap_2.GetNode('ExposureMode'))
+                exposure_mode_set = node_exposure_mode.GetEntryByName(config_parameters_2['EXPOSURE_MODE'])
+                node_exposure_mode.SetIntValue(exposure_mode_set.GetValue())
+                node_trigger_mode = nodemap_2.GetNode('TriggerMode')
+                #trigger_mode_set = node_trigger_mode.GetEntryByName('On')
+                #node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
+                cam_2.BeginAcquisition()
+            
+        aq_log.write(f'Ready to acquire: {datetime.now()}')
 
-
-    #t_test_end = time.time() + 10 # used to test the frame rate over 10 seconds
-    while acquiring: # will loop while acquiring is True
-        ######################################################
-        #               Software trigger                     #
-        ######################################################
-        if config_parameters_1['ACQUISITION_MODE'].lower() == 'trigger': # for acquisition mode trigger
-            try: # This puts the whole process within a loop that ends after a keyboard interrupt (Ctrl + C)
-                image_result_1 = cam_1.GetNextImage(timeout) #get image
-                image_data_1 = image_result_1.GetNDArray() #return image array
-                if mode == 'multi':
-                    image_result_2 = cam_2.GetNextImage(timeout) #get image
-                    image_data_2 = image_result_2.GetNDArray() #return image array
-                if first: #for first image set the acquisition array to the same size full of zeros
-                    arr_1 = np.zeros(image_data_1.shape)
+        #t_test_end = time.time() + 10 # used to test the frame rate over 10 seconds
+        while acquiring: # will loop while acquiring is True
+            ######################################################
+            #               Software trigger                     #
+            ######################################################
+            if config_parameters_1['ACQUISITION_MODE'].lower() == 'trigger': # for acquisition mode trigger
+                try: # This puts the whole process within a loop that ends after a keyboard interrupt (Ctrl + C)
+                    image_result_1 = cam_1.GetNextImage(timeout) #get image
+                    image_data_1 = image_result_1.GetNDArray() #return image array
                     if mode == 'multi':
-                        arr_2 = np.zeros(image_data_2.shape)
-                    first = False # no longer first acquisition
-                    #print(np.percentile(image_data,99),threshold)
-                if np.percentile(image_data_1,97) > threshold_1: #checks whether image data is above background levels (i.e. there is scintillation light)
-                    if mode == 'multi':
-                        if np.percentile(image_data_2,97) > threshold_2:
-                            triggered = True # Start acquiring
-                    else:
-                        triggered = True # Start acquiring
-                while triggered:
-                    if start: # This ensures this statement only prints once per acquisition
-                        print("Acquiring data")
-                    start = False
-                    image_result_1 = cam_1.GetNextImage(timeout) #Get image
-                    image_data_1 = image_result_1.GetNDArray() # retunr image array
-                    arr_1 = arr_1 + image_data_1 # add image array to acquisition array
-                    if mode == 'multi':
-                        image_result_2 = cam_2.GetNextImage(timeout) #Get image
-                        image_data_2 = image_result_2.GetNDArray() # retunr image array
-                        arr_2 = arr_2 + image_data_2 # add image array to acquisition array
-                    if np.percentile(image_data_1,98) <= threshold_1: # checks if image data is below background (i.e. no scintillation light)
-                        number = leading_zeros(i)
+                        image_result_2 = cam_2.GetNextImage(timeout) #get image
+                        image_data_2 = image_result_2.GetNDArray() #return image array
+                    if first: #for first image set the acquisition array to the same size full of zeros
+                        arr_1 = np.zeros(image_data_1.shape)
                         if mode == 'multi':
-                            if np.percentile(image_data_2,98) <= threshold_2: # checks if image data is below background (i.e. no scintillation light)
+                            arr_2 = np.zeros(image_data_2.shape)
+                        first = False # no longer first acquisition
+                        #print(np.percentile(image_data,99),threshold)
+                    if np.percentile(image_data_1,97) > threshold_1: #checks whether image data is above background levels (i.e. there is scintillation light)
+                        if mode == 'multi':
+                            if np.percentile(image_data_2,97) > threshold_2:
+                                triggered = True # Start acquiring
+                        else:
+                            triggered = True # Start acquiring
+                    while triggered:
+                        if start: # This ensures this statement only prints once per acquisition
+                            print("Acquiring data")
+                        start = False
+                        image_result_1 = cam_1.GetNextImage(timeout) #Get image
+                        image_data_1 = image_result_1.GetNDArray() # retunr image array
+                        arr_1 = arr_1 + image_data_1 # add image array to acquisition array
+                        if mode == 'multi':
+                            image_result_2 = cam_2.GetNextImage(timeout) #Get image
+                            image_data_2 = image_result_2.GetNDArray() # retunr image array
+                            arr_2 = arr_2 + image_data_2 # add image array to acquisition array
+                        if np.percentile(image_data_1,98) <= threshold_1: # checks if image data is below background (i.e. no scintillation light)
+                            number = leading_zeros(i)
+                            if mode == 'multi':
+                                if np.percentile(image_data_2,98) <= threshold_2: # checks if image data is below background (i.e. no scintillation light)
+                                    triggered =False # stop acuisition
+                                    first = True # reset for next acquisition
+                                    start = True # reset for next acuquisition
+                                    print("Acqiusition stopped")
+                                    np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", arr_1) # save as numpy .npy file
+                                    np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", arr_2) # save as numpy .npy file
+                                    i+=1 #incremet the number of acquisitions for unique file names
+                                    print("image saved\n"
+                                        "Ready to acquire")
+                            else:
                                 triggered =False # stop acuisition
                                 first = True # reset for next acquisition
                                 start = True # reset for next acuquisition
                                 print("Acqiusition stopped")
                                 np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", arr_1) # save as numpy .npy file
-                                np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", arr_2) # save as numpy .npy file
                                 i+=1 #incremet the number of acquisitions for unique file names
-                                print("image saved\n"
-                                     "Ready to acquire")
-                        else:
-                            triggered =False # stop acuisition
-                            first = True # reset for next acquisition
-                            start = True # reset for next acuquisition
-                            print("Acqiusition stopped")
-                            np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", arr_1) # save as numpy .npy file
-                            i+=1 #incremet the number of acquisitions for unique file names
-                            print("image saved")
-                    if triggered: # releases image to allow the next one if still triggered
+                                print("image saved")
+
+                            aq_log.write(f'Acquired image {number}: {datetime.now()}')
+                        if triggered: # releases image to allow the next one if still triggered
+                            image_result_1.Release()
+                            if mode == 'multi':
+                                image_result_2.Release()
+                    try: # trys to release the image to allow the next one if not triggered
                         image_result_1.Release()
                         if mode == 'multi':
-                            image_result_2.Release()
-                try: # trys to release the image to allow the next one if not triggered
-                    image_result_1.Release()
-                    if mode == 'multi':
-                        try:
-                            image_result_2.Release()
-                        except:
-                            pass
-                except:
-                    if mode == 'multi':
-                        try:
-                            image_result_2.Relese()
-                        except:
-                            pass
-            except KeyboardInterrupt: # Stops acquisition session  when stop command entered (Ctrl + C)
-                print("Acqiusition stopped")
-                acquiring = False
+                            try:
+                                image_result_2.Release()
+                            except:
+                                pass
+                    except:
+                        if mode == 'multi':
+                            try:
+                                image_result_2.Relese()
+                            except:
+                                pass
+                except KeyboardInterrupt: # Stops acquisition session  when stop command entered (Ctrl + C)
+                    print("Acqiusition stopped")
+                    acquiring = False
 
-        ######################################################
-        #                          Timed                     #
-        ######################################################
-        elif config_parameters_1['ACQUISITION_MODE'].lower() == 'time': # acqisition mode timed - Frame by frame mode
-            try:
-                acquisition_time = config_parameters_1['ACQUISITON_TIME'] # retrive acquisition time from config file
-                print("Press enter to acquire")
-                #input()
-                t_stop = time.time() +  acquisition_time #sets the time at which the aquisition should end
-                while time.time() < t_stop: # loops until the acquisition should end
+            ######################################################
+            #                          Timed                     #
+            ######################################################
+            elif config_parameters_1['ACQUISITION_MODE'].lower() == 'time': # acqisition mode timed - Frame by frame mode
+                try:
+                    acquisition_time = config_parameters_1['ACQUISITON_TIME'] # retrive acquisition time from config file
+                    print("Press enter to acquire")
+                    #input()
+                    t_stop = time.time() +  acquisition_time #sets the time at which the aquisition should end
+                    while time.time() < t_stop: # loops until the acquisition should end
+                        if start:
+                            print("Acquiring data")
+                        start=False
+                        image_result_1 = cam_1.GetNextImage(timeout) # Get image
+                        image_data_1 = image_result_1.GetNDArray() # Return image array
+                        number == leading_zeros(i)
+                        if mode == 'multi':
+                            image_result_2 = cam_2.GetNextImage(timeout) # Get image
+                            image_data_2 = image_result_2.GetNDArray()
+                        np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_1) # save image as numpy .npy file
+                        if mode == 'multi':
+                            np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_2) # save image as numpy .npy file
+                        aq_log.write(f'Acquired image {number}: {datetime.now()}')
+                        i+=1 # increment the acquisition counter for unique file names
+                        image_result_1.Release() # release image so the next one can be allowed to be read
+                        if mode == 'multi':
+                            image_result_2.Release() # release image so the next one can be allowed to be read
+                    print("Acqiusition stopped")
+                    acquiring = False # Stops acquiring after the set time
+
+                except KeyboardInterrupt:
+                    print("Acqiusition stopped")
+                    acquiring = False
+            ######################################################
+            #               Continuous                           #
+            ######################################################
+            elif config_parameters_1['ACQUISITION_MODE'].lower() == 'continuous': # acquires until stop command (Ctrl + C)
+                try: # Sets up ability to stop acquisition on stop command
                     if start:
+                        input()
                         print("Acquiring data")
+                    aq_log.write(f'Started continuous acquisition: {datetime.now()}')
                     start=False
                     image_result_1 = cam_1.GetNextImage(timeout) # Get image
                     image_data_1 = image_result_1.GetNDArray() # Return image array
-                    number == leading_zeros(i)
+                    number = leading_zeros(i)
+                    np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_1) #save image as numpy .npy file
                     if mode == 'multi':
-                        image_result_2 = cam_2.GetNextImage(timeout) # Get image
+                        image_result_2 = cam_2.GetNextImage(timeout)
                         image_data_2 = image_result_2.GetNDArray()
-                    np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_1) # save image as numpy .npy file
+                        np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_2)
+                    aq_log.write(f'Acquired frame {number}: {datetime.now()}')
+                    i+=1 # increment acquisition counter for unique file names
+                    image_result_1.Release() # release image so the next one can be read
                     if mode == 'multi':
-                        np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_2) # save image as numpy .npy file
-                    i+=1 # increment the acquisition counter for unique file names
-                    image_result_1.Release() # release image so the next one can be allowed to be read
-                    if mode == 'multi':
-                        image_result_2.Release() # release image so the next one can be allowed to be read
-                print("Acqiusition stopped")
-                acquiring = False # Stops acquiring after the set time
+                        image_result_2.Release()
+                except KeyboardInterrupt: # stops acquisition on the stop command (Ctrl + C)
+                    acquiring = False
+                    print("Acqiusition stopped")
 
-            except KeyboardInterrupt:
-                print("Acqiusition stopped")
-                acquiring = False
-        ######################################################
-        #               Continuous                           #
-        ######################################################
-        elif config_parameters_1['ACQUISITION_MODE'].lower() == 'continuous': # acquires until stop command (Ctrl + C)
-            try: # Sets up ability to stop acquisition on stop command
-                if start:
-                    input()
-                    print("Acquiring data")
-                start=False
-                image_result_1 = cam_1.GetNextImage(timeout) # Get image
-                image_data_1 = image_result_1.GetNDArray() # Return image array
-                number = leading_zeros(i)
-                np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_1) #save image as numpy .npy file
-                if mode == 'multi':
-                    image_result_2 = cam_2.GetNextImage(timeout)
-                    image_data_2 = image_result_2.GetNDArray()
-                    np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data_2)
-                i+=1 # increment acquisition counter for unique file names
-                image_result_1.Release() # release image so the next one can be read
-                if mode == 'multi':
-                    image_result_2.Release()
-            except KeyboardInterrupt: # stops acquisition on the stop command (Ctrl + C)
-                acquiring = False
-                print("Acqiusition stopped")
+            ######################################################
+            #               External trigger                     #
+            ######################################################
+            elif config_parameters_1['ACQUISITION_MODE'].lower() == 'external':
+                try:
+                    if external_3v == False:
+                        if config_parameters_1['SERIAL_NUMBER'] == '21119929':
+                            node_line_selector = ps.CEnumerationPtr(nodemap_1.GetNode('LineSelector'))
 
-        ######################################################
-        #               External trigger                     #
-        ######################################################
-        elif config_parameters_1['ACQUISITION_MODE'].lower() == 'external':
-            try:
-                if external_3v == False:
-                    if config_parameters_1['SERIAL_NUMBER'] == '21119929':
-                        node_line_selector = ps.CEnumerationPtr(nodemap_1.GetNode('LineSelector'))
-
-                        line_output = node_line_selector.GetEntryByName('Line5')
-                        node_line_selector.SetIntValue(line_output.GetValue())
-                        node_user_output_select = ps.CEnumerationPtr(nodemap_1.GetNode('UserOutputSelector'))
-                        line2_value = node_user_output_select.GetEntryByName("UserOutput2")
-                        node_user_output_select.SetIntValue(line2_value.GetValue())
-                        node_user_output_value = ps.CBooleanPtr(nodemap_1.GetNode('UserOutputValue'))
-                        user_output_value = True
-                        node_user_output_value.SetValue(user_output_value)
-                        
-                        line_output = node_line_selector.GetEntryByName('Line2')
-                        node_line_selector.SetIntValue(line_output.GetValue())
-                        node_line_mode = ps.CEnumerationPtr(nodemap_1.GetNode('LineMode'))
-                        line_mode_output = node_line_mode.GetEntryByName('Output')
-                        node_line_mode.SetIntValue(line_mode_output.GetValue())
-
-                        line_3v = node_line_selector.GetEntryByName('Line6')
-                        node_line_selector.SetIntValue(line_3v.GetValue())
-                        node_3v = ps.CBooleanPtr(nodemap_1.GetNode('V3_3Enable'))
-                        on_3v = True
-                        node_3v.SetValue(on_3v)
-
-                    if mode == 'multi':
-                        if config_parameters_2['SERIAL_NUMBER'] == '21119929':
-                            node_line_selector = ps.CEnumerationPtr(nodemap_2.GetNode('LineSelector'))
-                            
                             line_output = node_line_selector.GetEntryByName('Line5')
                             node_line_selector.SetIntValue(line_output.GetValue())
-                            node_user_output_select = ps.CEnumerationPtr(nodemap_2.GetNode('UserOutputSelector'))
+                            node_user_output_select = ps.CEnumerationPtr(nodemap_1.GetNode('UserOutputSelector'))
                             line2_value = node_user_output_select.GetEntryByName("UserOutput2")
                             node_user_output_select.SetIntValue(line2_value.GetValue())
-                            node_user_output_value = ps.CBooleanPtr(nodemap_2.GetNode('UserOutputValue'))
+                            node_user_output_value = ps.CBooleanPtr(nodemap_1.GetNode('UserOutputValue'))
                             user_output_value = True
                             node_user_output_value.SetValue(user_output_value)
-
+                            
                             line_output = node_line_selector.GetEntryByName('Line2')
                             node_line_selector.SetIntValue(line_output.GetValue())
-                            node_line_mode = ps.CEnumerationPtr(nodemap_2.GetNode('LineMode'))
+                            node_line_mode = ps.CEnumerationPtr(nodemap_1.GetNode('LineMode'))
                             line_mode_output = node_line_mode.GetEntryByName('Output')
                             node_line_mode.SetIntValue(line_mode_output.GetValue())
 
                             line_3v = node_line_selector.GetEntryByName('Line6')
                             node_line_selector.SetIntValue(line_3v.GetValue())
-                            node_3v = ps.CBooleanPtr(nodemap_2.GetNode('V3_3Enable'))
+                            node_3v = ps.CBooleanPtr(nodemap_1.GetNode('V3_3Enable'))
                             on_3v = True
                             node_3v.SetValue(on_3v)
-                    external_3v = True
-                    
-                    print("Trigger Ready")
-                image_result_1 = cam_1.GetNextImage(300000000) #get image
-                if mode == 'multi':
-                    image_result_2 = cam_2.GetNextImage(300000000)
-                image_data_1 = image_result_1.GetNDArray() #return image array
-                if mode == 'multi':
-                    image_data_2 = image_result_2.GetNDArray()
-                number = leading_zeros(i)
-                np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", image_data_1) # save as numpy .npy file
-                if mode == 'multi':
-                    np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "acquisition_" + number + '.npy', image_data_2)
-                i+=1 #incremet the number of acquisitions for unique file names
-                print("Image saved")
-                try:
-                    image_result_1.Release()
-                except:
-                    pass
-                
-                if mode == 'multi':
+
+                        if mode == 'multi':
+                            if config_parameters_2['SERIAL_NUMBER'] == '21119929':
+                                node_line_selector = ps.CEnumerationPtr(nodemap_2.GetNode('LineSelector'))
+                                
+                                line_output = node_line_selector.GetEntryByName('Line5')
+                                node_line_selector.SetIntValue(line_output.GetValue())
+                                node_user_output_select = ps.CEnumerationPtr(nodemap_2.GetNode('UserOutputSelector'))
+                                line2_value = node_user_output_select.GetEntryByName("UserOutput2")
+                                node_user_output_select.SetIntValue(line2_value.GetValue())
+                                node_user_output_value = ps.CBooleanPtr(nodemap_2.GetNode('UserOutputValue'))
+                                user_output_value = True
+                                node_user_output_value.SetValue(user_output_value)
+
+                                line_output = node_line_selector.GetEntryByName('Line2')
+                                node_line_selector.SetIntValue(line_output.GetValue())
+                                node_line_mode = ps.CEnumerationPtr(nodemap_2.GetNode('LineMode'))
+                                line_mode_output = node_line_mode.GetEntryByName('Output')
+                                node_line_mode.SetIntValue(line_mode_output.GetValue())
+
+                                line_3v = node_line_selector.GetEntryByName('Line6')
+                                node_line_selector.SetIntValue(line_3v.GetValue())
+                                node_3v = ps.CBooleanPtr(nodemap_2.GetNode('V3_3Enable'))
+                                on_3v = True
+                                node_3v.SetValue(on_3v)
+                        external_3v = True
+                        
+                        print("Trigger Ready")
+
+                    aq_log.write(f'Trigger Ready: {datetime.now()}')
+                    image_result_1 = cam_1.GetNextImage(300000000) #get image
+                    if mode == 'multi':
+                        image_result_2 = cam_2.GetNextImage(300000000)
+                    image_data_1 = image_result_1.GetNDArray() #return image array
+                    if mode == 'multi':
+                        image_data_2 = image_result_2.GetNDArray()
+                    number = leading_zeros(i)
+                    np.save(output + config_parameters_1["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", image_data_1) # save as numpy .npy file
+                    if mode == 'multi':
+                        np.save(output + config_parameters_2["CAMERA_VIEW"] + "/" + "acquisition_" + number + '.npy', image_data_2)
+                    i+=1 #incremet the number of acquisitions for unique file names
+                    print("Image saved")
+                    aq_log.write(f'Acquired image {number}: {datetime.now()}')
                     try:
-                        image_result_2.Release()
+                        image_result_1.Release()
                     except:
                         pass
-            except KeyboardInterrupt:
+                    
+                    if mode == 'multi':
+                        try:
+                            image_result_2.Release()
+                        except:
+                            pass
+                except KeyboardInterrupt:
+                    acquiring = False
+                    print("Acquisition Stopped")
+            
+            else: # Stops session when no valid acquisition mode is in the config file
+                print("Invalid acquisition mode")
                 acquiring = False
-                print("Acquisition Stopped")
+        aq_log.write(f'Acquisition stopped: {datetime.now()}')
+        print("\nEnd of session")
 
-        else: # Stops session when no valid acquisition mode is in the config file
-            print("Invalid acquisition mode")
-            acquiring = False
+        time_30 = time.time() + 30
+        while time.time() < time_30:
+            pass
 
-    print("\nEnd of session")
-
-    time_30 = time.time() + 30
-    while time.time() < time_30:
-        pass
-
-    # These commands disconnect the camera and end the PySpin connection removing residual data
-    try:
-        image_result_1.Release()
+        # These commands disconnect the camera and end the PySpin connection removing residual data
+        try:
+            image_result_1.Release()
+            if mode == 'multi':
+                try:
+                    image_result_2.Release()
+                except:
+                    pass
+        except:
+            if mode == 'multi':
+                try:
+                    image_result_2.Release()
+                except:
+                    pass
+        cam_1.EndAcquisition()
         if mode == 'multi':
-            try:
-                image_result_2.Release()
-            except:
-                pass
-    except:
+            cam_2.EndAcquisition()
+        cam_1.DeInit()
+        camera.DeInit()
         if mode == 'multi':
-            try:
-                image_result_2.Release()
-            except:
-                pass
-    cam_1.EndAcquisition()
-    if mode == 'multi':
-        cam_2.EndAcquisition()
-    cam_1.DeInit()
-    camera.DeInit()
-    if mode == 'multi':
-        cam_2.DeInit()
-    del cam
-    del cam_1
-    del camera
-    if mode == 'multi':
-        del cam_2
-    cam_list.Clear()
-    camera_list.clear()
-    system.ReleaseInstance()
-
+            cam_2.DeInit()
+        del cam
+        del cam_1
+        del camera
+        if mode == 'multi':
+            del cam_2
+        cam_list.Clear()
+        camera_list.clear()
+        system.ReleaseInstance()
+        aq_log.write(f'Released: {datetime.now()}')
+        aq_log,close()
 
 
 #Checks the number of arguments entered is acceptable
