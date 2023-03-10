@@ -38,15 +38,15 @@ def main(input_image_path, calibration_matrix, dist_coeffs, crop):
     np.save(save_path  + path_split[-1][:-4] + '_undistorted', dst)
 
 
-"""
 
-if len(sys.argv) < 4:
-    print('Please enter the following arguments:\n'
-        '1) Path to distorted image\n'
-        '2) Path to calibration matrix\n'
-        '3) Path to distortion coefficients\n'
-        '4) Whether to crop the undistorted image to remove black space [0 or 1]\n')
+if __name__ == "__main__":
+    if len(sys.argv) < 4:
+        print('Please enter the following arguments:\n'
+            '1) Path to distorted image\n'
+            '2) Path to calibration matrix\n'
+            '3) Path to distortion coefficients\n'
+            '4) Whether to crop the undistorted image to remove black space [0 or 1]\n')
 
-else:
-    main(sys.argv[1], sys.argv[2],sys.argv[3], int(sys.argv[4]))
-"""
+    else:
+        main(sys.argv[1], sys.argv[2],sys.argv[3], int(sys.argv[4]))
+

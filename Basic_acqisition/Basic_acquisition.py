@@ -873,15 +873,15 @@ def main(output, config_1, config_2):
         aq_log.write(f'Released: {datetime.now()} \n')
         aq_log.close()
 
+if __name__ == "__main__":
+    #Checks the number of arguments entered is acceptable
+    if len(sys.argv) < 3:
+        #provides argument information if this is not the case
+        print('Please enter the following arguments:\n'
+        '1) Path to the configuration file(s)\n'
+        '2) Path to output directory\n')
 
-#Checks the number of arguments entered is acceptable
-if len(sys.argv) < 3:
-    #provides argument information if this is not the case
-    print('Please enter the following arguments:\n'
-    '1) Path to the configuration file(s)\n'
-    '2) Path to output directory\n')
-
-elif len(sys.argv) ==3:
-    main(sys.argv[2], sys.argv[1], 'pass')
-else: # runs main function
-    main(sys.argv[3], sys.argv[1], sys.argv[2])
+    elif len(sys.argv) ==3:
+        main(sys.argv[2], sys.argv[1], 'pass')
+    else: # runs main function
+        main(sys.argv[3], sys.argv[1], sys.argv[2])

@@ -58,5 +58,5 @@ def main(calibration_matrix_file, image_path):
     # save new image
     np.save(image_directory + file_name + '_corrected',im)
 
-
-#main(sys.argv[1],sys.argv[2])
+if __name__ == "__main__":
+    main(sys.argv[1],sys.argv[2])
