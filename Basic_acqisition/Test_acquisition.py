@@ -8,7 +8,7 @@ from Basic_acquisition import set_settings, write_log_file
 import matplotlib.pyplot as plt
 import keyboard
 
-def main(output, config_1, config_2):
+def main(config_1, config_2,output = './'):
     """
         Main function that takes in the config file and output directory
         the funtion initialises the camera and handles the acquisition,
@@ -115,73 +115,78 @@ def main(output, config_1, config_2):
         timeout = (int) ((1./FPS_res_1) +60000) # for most cases exposure is the better time to use. This avoids errors trying to get images faster than the FPS
         #print(timeout)
     
-
     if mode == 'multi':
         fig, ax = plt.subplots(1,2)             
     else:
         fig, ax = plt.subplots(1) 
+
     # Close the GUI when close event happens
     recording = True
-
-    while recording:
-            
-        image_result_1 = cam_1.GetNextImage(timeout)
-        if mode == 'multi':
-            image_result_2 = cam_2.GetNextImage(timeout)
-
-        # Getting the image data as a numpy array
-        image_data_1 = image_result_1.GetNDArray()
-        if mode == 'multi':
-            image_data_2 = image_result_2.GetNDArray()
-        # Draws an image on the current figure
-        ax[0].imshow(image_data_1, cmap='gray')
-        if mode == 'multi':
-            ax[1].imshow(image_data_2, cmap='gray')
-        
-        plt.show()
-        # Interval in plt.pause(interval) determines how fast the images are displayed in a GUI
-        # Interval is in seconds.
-        plt.pause(0.001)
-
-        # Clear current reference of a figure. This will improve display speed significantly
-        plt.clf()
-        
-        # If user presses enter, close the program
-        if keyboard.is_pressed('ENTER'):
-            print('Program is closing...')
-            
-            # Close figure
-            plt.close('all')             
-            recording = False
-    
     try:
-        image_result_1.Release()
-        if mode == 'multi':
-            try:
-                image_result_2.Release()
-            except:
-                pass
-    except:
-        if mode == 'multi':
-            try:
-                image_result_2.Release()
-            except:
-                pass
+        while recording:
 
+                
+            image_result_1 = cam_1.GetNextImage(timeout)
+            if mode == 'multi':
+                image_result_2 = cam_2.GetNextImage(timeout)
+
+            # Getting the image data as a numpy array
+            image_data_1 = image_result_1.GetNDArray()
+            if mode == 'multi':
+                image_data_2 = image_result_2.GetNDArray()
+            # Draws an image on the current figure
+            ax[0].imshow(image_data_1, cmap='gray')
+            if mode == 'multi':
+                ax[1].imshow(image_data_2, cmap='gray')
             
-    cam_1.EndAcquisition()
-    if mode == 'multi':
-        cam_2.EndAcquisition()
-    cam_1.DeInit()
-    camera.DeInit()
-    if mode == 'multi':
-        cam_2.DeInit()
-    del cam
-    del cam_1
-    del camera
-    if mode == 'multi':
-        del cam_2
-    cam_list.Clear()
-    camera_list.clear()
-    system.ReleaseInstance()
+            plt.draw()
+            # Interval in plt.pause(interval) determines how fast the images are displayed in a GUI
+            # Interval is in seconds.
+            plt.pause(0.0001)
 
+            # Clear current reference of a figure. This will improve display speed significantly
+ 
+           
+            
+            # If user presses enter, close the program
+            # if keyboard.is_pressed('ENTER'):
+            #     print('Program is closing...')
+                
+            #     # Close figure
+            #     plt.close('all')             
+            #     recording = False
+            
+            
+            try:
+                image_result_1.Release()
+                if mode == 'multi':
+                    try:
+                        image_result_2.Release()
+                    except:
+                        pass
+            except:
+                if mode == 'multi':
+                    try:
+                        image_result_2.Release()
+                    except:
+                        pass
+
+    except KeyboardInterrupt:
+        cam_1.EndAcquisition()
+        if mode == 'multi':
+            cam_2.EndAcquisition()
+        cam_1.DeInit()
+        camera.DeInit()
+        if mode == 'multi':
+            cam_2.DeInit()
+        del cam
+        del cam_1
+        del camera
+        if mode == 'multi':
+            del cam_2
+        cam_list.Clear()
+        camera_list.clear()
+        system.ReleaseInstance()
+
+if __name__ == "__main__":
+    main(sys.argv[1],sys.argv[2])
