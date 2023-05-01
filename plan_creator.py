@@ -35,7 +35,6 @@ offset_spot = 0
 pattern_scan = 0
 if int(sys.argv[2]) == 1:
     offset_spot = 1 # offset spot should be 0 or 1 depending on if an outside spot is needed for triggeringsys
-    print("yeah")
 elif int(sys.argv[2]) == 2:
     pattern_scan = 1
 
@@ -96,7 +95,6 @@ for beam in beam_sequence:
     pos_y = np.arange((-y_field_list[i]/2)+(spot_spacing_y/2)+field_offset_y_list[i],(y_field_list[i]/2)+field_offset_y_list[i], spot_spacing_y)
     if pattern_scan:
         for it in range(0,len(pos_x)):
-            print(it)
             for x in range(0,len(pos_x)):
                 for position in range(0,int(y_field_list[i]),50):
                     for y in range(0,len(pos_y)):
@@ -112,7 +110,7 @@ for beam in beam_sequence:
                     spot_list.append(0.0)
                     spot_list.append(150.0)
 
-    #print(spot_list)
+
 
     N_spots_list.append(int(len(spot_list)/2))
     beam[0x300a,0x03a8][0][0x300a,0x0392].value = N_spots_list[i]
@@ -155,13 +153,6 @@ else:
 
 print("Enter gantry number: ")
 gantry_number = input()
-
-#print("MU list: ", mu_list)
-#print("Energy list: ", energy_list)
-#print("Dose list: ", dose_list)
-
-
-
 
 #set required parameters
 i = 0
