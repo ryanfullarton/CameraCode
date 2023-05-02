@@ -33,10 +33,13 @@ spot_sizes = {
 dcm = pd.dcmread(sys.argv[1])
 offset_spot = 0
 pattern_scan = 0
+raster = 0
 if int(sys.argv[2]) == 1:
     offset_spot = 1 # offset spot should be 0 or 1 depending on if an outside spot is needed for triggeringsys
 elif int(sys.argv[2]) == 2:
     pattern_scan = 1
+elif int(sys.argv[2]) ==3:
+    raster = 1
 
 beam_sequence = dcm[0x300a,0x03a2].value
 #find reference sequence to set total MU
@@ -101,6 +104,19 @@ for beam in beam_sequence:
                         if y == position:
                             spot_list.append(pos_x[x-it])
                             spot_list.append(pos_y[y-it])
+    elif raster:
+        line = 1
+        for position_x in pos_x:
+            for position_y in pos_y:
+                if line % 2 == 0:
+                    spot_list.append(position_x)
+                    spot_list.append(position_y)
+                else:
+                    spot_list.append(position_x)
+                    spot_list.append(-position_y)
+            line+=1
+
+
     else:
         for position_x in pos_x:
             for position_y in pos_y:
