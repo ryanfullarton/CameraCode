@@ -1,0 +1,54 @@
+{
+"SERIAL_NUMBER" : "22587681",
+"CAMERA_VIEW" : "Distal",
+"EXPOSURE_MODE": "TriggerWidth",
+"ACQUISITION_MODE" : "external",
+"ACQUISITON_TIME": 1, 
+"SKIP_BACKGROUND": "YES",
+
+"AUTO_EXPOSURE" : "Off",
+"EXPOSURE" : 1000,
+
+"GAIN_SELECTOR" : "All",
+"AUTO_GAIN" : "Off",
+"GAIN" : 22,
+
+"TRIGGER_SELECTION" : "Acquisitiosntart",
+"TRIGGER_SOURCE" : "Line5",
+"TRIGGER_ACTIVATION" : "LevelHigh",
+"TRIGGER_OVERLAP" : "ReadOut",
+"TRIGGER_DELAY" : 12,
+
+"SHUTTER_MODE" : "Global",
+
+"WIDTH" : 520,
+"HEIGHT" : 520,
+
+"OFFSET_X" : 368,
+"OFFSET_Y" : 244,
+
+"BIT_DEPTH" : "Mono8",
+"ADC_BIT_DEPTH" : "Bit10",
+
+"ISP" : "False",
+"BINNING_SELECTOR" : "All",
+"BINS" : 2,
+"BIN_METHOD" : "Average",
+
+"DECIMATION_SELECTOR": "All",
+"DECIMATION" : 1,
+"DECIMATION_METHOD" : "Discard",
+
+"BLACK_LEVEL_SELECTOR" : "All",
+"BLACK_LEVEL_CLAMPING" : "False",
+"BLACK_LEVEL" : 0.00,
+
+"GAMMA_ENABLE" : "Off",
+"GAMMA": 0,
+
+"SHARPENING_ENABLE" : "Off",
+"AUTO_SHARPENING": "False",
+"SHARPENING" : 0
+
+
+}
