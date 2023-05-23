@@ -7,12 +7,20 @@
 #include <opencv2/core.hpp>
 #include <stdio.h>
 #include <iostream>
+#include <fstream>
+#include <iostream>
+#include <filesystem>
+#include <sys/stat.h>
 
 
 
 
 int main(int argc, char** argv)
 {
+  //arg1 - path to folder
+  //arg2 - rows
+  //arg2 - Columns
+  //arg4 - Square dimensions
   // Defining the dimensions of checkerboard
   std::string arg2 = argv[2];
   std::cout<<arg2<<std::endl;
@@ -21,6 +29,7 @@ int main(int argc, char** argv)
   int square_edge = std::atoi(argv[4]);
   // Creating vector to store vectors of 3D points for each checkerboard image
   std::vector<std::vector<cv::Point3f> > objpoints;
+  
 
   // Creating vector to store vectors of 2D points for each checkerboard image
   std::vector<std::vector<cv::Point2f> > imgpoints;
@@ -38,14 +47,13 @@ int main(int argc, char** argv)
   std::vector<cv::String> images;
   // Path of the folder containing checkerboard images
   std::string path = argv[1];
-
   cv::glob(path, images);
 
   cv::Mat frame, gray;
   // vector to store the pixel coordinates of detected checker board corners 
   std::vector<cv::Point2f> corner_pts;
   bool success;
-
+  mkdir((path+"/calibrationData").c_str(),0777);
   // Looping over all the images in the directory
   for(int i{0}; i<images.size(); i++)
   {
@@ -76,10 +84,10 @@ int main(int argc, char** argv)
     }
 
     cv::imshow("Image",frame);
-    cv::waitKey(0);
+    cv::waitKey(500);
+    cv::destroyAllWindows();
   }
 
-  cv::destroyAllWindows();
 
   cv::Mat cameraMatrix,distCoeffs,R,T;
 
@@ -95,6 +103,24 @@ int main(int argc, char** argv)
   std::cout << "distCoeffs : " << distCoeffs << std::endl;
   std::cout << "Rotation vector : " << R << std::endl;
   std::cout << "Translation vector : " << T << std::endl;
+  
+  std::ofstream calfile;
+  calfile.open (path +"/calibrationData/" + "calibrationMatrix.txt");
+  calfile << cameraMatrix;
+  calfile.close();
 
-  return 0;
+  std::ofstream distortionFile;
+  distortionFile.open (path +"/calibrationData/" + "distortionCoefficients.txt");
+  distortionFile << distCoeffs;
+  distortionFile.close();
+
+  std::ofstream RVecFile;
+  RVecFile.open (path +"/calibrationData/" + "rotationVectors.txt");
+  RVecFile << R;
+  RVecFile.close();
+
+  std::ofstream TVecFile;
+  TVecFile.open (path +"/calibrationData/" + "translationVectors.txt");
+  TVecFile << T;
+  TVecFile.close();
 }
