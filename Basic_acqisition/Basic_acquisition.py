@@ -436,7 +436,7 @@ def main(output, config_list):
                 config_parameters_list.append(json.load(f1))
         
             try:
-                os.mkdir(output + config_parameters_list[i]["CAMERA_VIEW"])
+                os.mkdir(output + config_parameters_list[camera_number]["CAMERA_VIEW"])
             except FileExistsError:
                 pass
             camera_number+=1
@@ -451,12 +451,11 @@ def main(output, config_list):
         for i, cam in enumerate(cam_list):
             camera_list.append(cam)
         
-
+        FPS_min=1000
         for camera in camera_list:
             camera.Init()
             temp_nodemap = camera.GetNodeMap()
             camera_SN = ps.CStringPtr(temp_nodemap.GetNode('DeviceSerialNumber')).GetValue()
-            min_FPS = 1000
             camera.DeInit()
             for config_parameters in config_parameters_list:
                 if camera_SN == config_parameters['SERIAL_NUMBER']:
@@ -472,23 +471,25 @@ def main(output, config_list):
                     if FPS_res < FPS_min:
                         FPS_min = FPS_res
         
-        i=0
+        camera_number=0
         for camera in camera_list:
-            node_frame_rate_enable = ps.CBooleanPtr(nodemap_list[i].GetNode('AcquisitionFrameRateEnable'))
+            node_frame_rate_enable = ps.CBooleanPtr(nodemap_list[camera_number].GetNode('AcquisitionFrameRateEnable'))
             frame_rate_enable = True
             node_frame_rate_enable.SetValue(frame_rate_enable)
 
-            FPS_node = ps.CFloatPtr(nodemap_list[i].GetNode('AcquisitionFrameRate'))
+            FPS_node = ps.CFloatPtr(nodemap_list[camera_number].GetNode('AcquisitionFrameRate'))
             FPS_node.SetValue(FPS_min)
-            FPS_res = ps.CFloatPtr(nodemap_list[i].GetNode('AcquisitionResultingFrameRate')).GetValue()
 
-            cam_SN = ps.CStringPtr(nodemap_list[i].GetNode('DeviceSerialNumber')).GetValue()
-            print(f'Camera {i} ({cam_SN}):')
+            FPS_res = ps.CFloatPtr(nodemap_list[camera_number].GetNode('AcquisitionResultingFrameRate')).GetValue()
+            FPS_aq = ps.CFloatPtr(nodemap_list[camera_number].GetNode('AcquisitionFrameRate')).GetValue()
+            cam_SN = ps.CStringPtr(nodemap_list[camera_number].GetNode('DeviceSerialNumber')).GetValue()
+            
+            print(f'Camera {camera_number+1} ({cam_SN}):')
 
-            print(f"Acquisition Frame Rate: {round(FPS_node,0)}   Resulting Frame Rate: {round(FPS_res,0)}")
+            print(f"Acquisition Frame Rate: {round(FPS_aq,0)}   Resulting Frame Rate: {round(FPS_res,0)}")
 
             camera.BeginAcquisition() # start acquisition
-            i+=1
+            camera_number+=1
         
         #Set intialial booleans reqired for acquisition logic
         acquiring = True # is acquiring
@@ -498,16 +499,17 @@ def main(output, config_list):
         start = True # for printing when data is being acquired for trigger mode    
         timeout = (int) ((1./FPS_res) + 60000)
 
-        
+        bg_list = []
         threshold_list = []
         b=0 # set counter for number of background images at 0
-        image_result = camera_list[0].GetNextImage(timeout) #retrieve image from the camera after timeout
-        image_data = image_result.GetNDArray() #retrieve the array of image data
-        bg_arr = np.zeros(image_data.shape,dtype=np.float32) #set background array to match size of image array with value of 0     
-        bg_list = []
-        for camera in cam_list:
+        camera_number = 0
+        for camera in camera_list:
+            image_result = camera_list[camera_number].GetNextImage(timeout) #retrieve image from the camera after timeout
+            image_data = image_result.GetNDArray() #retrieve the array of image data
+            bg_arr = np.zeros(image_data.shape,dtype=np.float32) #set background array to match size of image array with value of 0     
             bg_list.append(bg_arr)
-
+            camera_number+=1
+        camera_number=0
         t_end = time.time() + 10 # Set backqroung acquisition time (10s)
         percentile = 98
         if config_parameters_list[0]["SKIP_BACKGROUND"].lower() !='yes':
@@ -516,7 +518,7 @@ def main(output, config_list):
                 bg_count = 0
                 for camera in cam_list:
                     image_result = camera.GetNextImage(timeout)
-                    image_data = camera.GetNDArray()
+                    image_data = image_result.GetNDArray()
                     bg_list[bg_count] += image_data #add image data to background array
                     image_result.Release() # release image to acquire the next one
                     bg_count +=1
@@ -561,7 +563,7 @@ def main(output, config_list):
             ######################################################
             #               Software trigger                     #
             ######################################################
-            if config_parameters[0]['ACQUISITION_MODE'].lower() == 'trigger': # for acquisition mode trigger
+            if config_parameters_list[0]['ACQUISITION_MODE'].lower() == 'trigger': # for acquisition mode trigger
                 image_array_list = []
                 try: # This puts the whole process within a loop that ends after a keyboard interrupt (Ctrl + C)
                     camera_number = 0
@@ -669,7 +671,7 @@ def main(output, config_list):
             ######################################################
             #               External trigger                     #
             ######################################################
-            elif config_parameters_list[camera_list]['ACQUISITION_MODE'].lower() == 'external':
+            elif config_parameters_list[0]['ACQUISITION_MODE'].lower() == 'external':
                 try:
                     for nodemap in nodemap_list:
                         node_line_selector = ps.CEnumerationPtr(nodemap.GetNode('LineSelector'))
