@@ -751,6 +751,7 @@ def main(output, config_list):
             camera.EndAcquisition()
             camera.DeInit()
             del camera
+        del cam
         cam_list.Clear()
         camera_list.clear()
         system.ReleaseInstance()
