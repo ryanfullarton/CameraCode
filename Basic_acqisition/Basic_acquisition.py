@@ -6,7 +6,7 @@ import sys
 import numpy as np
 from datetime import datetime
 
-def write_log_file(nodemap, config_parameters,SN, output):
+def write_log_file(nodemap, s_nodemap, config_parameters,SN, output):
 
     """ This function reads the current settings in the nodemap and writes them to a logfile in the output directory
         Can be used for debugging the set_settings function or acquisition record keeping
@@ -47,7 +47,7 @@ def write_log_file(nodemap, config_parameters,SN, output):
         decimation_method = ps.CEnumerationPtr(nodemap.GetNode('DecimationHorizontalMode')).GetCurrentEntry().GetDisplayName()
         hoz_decimation = ps.CIntegerPtr(nodemap.GetNode('DecimationHorizontal')).GetValue()
         vert_decimation = ps.CIntegerPtr(nodemap.GetNode('DecimationHorizontal')).GetValue()
-        buffer_handle = ps.CEnumerationPtr(nodemap.GetNode('StreamBufferHandlingMode')).GetCurrentEntry().GetDisplayName()
+        buffer_handle = ps.CEnumerationPtr(s_nodemap.GetNode('StreamBufferHandlingMode')).GetCurrentEntry().GetDisplayName()
 
         t = time.localtime()
         log.write('Acquisition Time: ')
@@ -132,7 +132,7 @@ def write_log_file(nodemap, config_parameters,SN, output):
         print('Log file saved')
 
 
-def set_settings(nodemap, config_parameters,output):
+def set_settings(nodemap, config_parameters, s_nodemap, output):
     """
         This function sets the camera acquisition parameters from the config file
         Each parameter requires retriving a node from the PySpin nodemap object
@@ -374,8 +374,8 @@ def set_settings(nodemap, config_parameters,output):
     offsety_to_set = config_parameters['OFFSET_Y']
     node_offsety.SetValue(offsety_to_set)
 
-    buffer_handle = ps.CEnumerationPtr(nodemap.GetNode('StreamBufferHandlingMode'))
-    buffer_handle_mode = node_vert_decimation_mode.GetEntryByName(config_parameters['BUFFER_HANDLE'])
+    buffer_handle = ps.CEnumerationPtr(s_nodemap.GetNode('StreamBufferHandlingMode'))
+    buffer_handle_mode = buffer_handle.GetEntryByName(config_parameters['BUFFER_HANDLE'])
     buffer_handle.SetIntValue(buffer_handle_mode.GetValue())
 
     #Return the Frame rate of resulting from the acquisition parameters
@@ -385,7 +385,7 @@ def set_settings(nodemap, config_parameters,output):
     
     print(f'Generating log file for {SN}')
 
-    write_log_file(nodemap, config_parameters, SN, output)
+    write_log_file(nodemap, s_nodemap, config_parameters, SN, output)
 
     #Change back to timed mode no matter what otherwise a background can't be taken
     node_exposure_mode = ps.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
@@ -474,11 +474,12 @@ def main(output, config_list):
                     camera.Init()
                     #return the node map to set acquisition parameters
                     nodemap = camera.GetNodeMap()
+                    s_nodemap = camera.GetTLStreamNodeMap()
                     nodemap_list.append(nodemap)
                     temp_config_list.append(config_parameters)
                     #Set the acquisiton paraeters and return the frame rate (see above function)
                     
-                    FPS_aq, FPS_res = set_settings(nodemap, config_parameters, output)
+                    FPS_aq, FPS_res = set_settings(nodemap, config_parameters, s_nodemap, output)
                     if FPS_res < FPS_min:
                         FPS_min = FPS_res
         #orders config parameters in the same order as camera list
@@ -489,7 +490,6 @@ def main(output, config_list):
             node_frame_rate_enable = ps.CBooleanPtr(nodemap_list[camera_number].GetNode('AcquisitionFrameRateEnable'))
             frame_rate_enable = True
             node_frame_rate_enable.SetValue(frame_rate_enable)
-
             FPS_node = ps.CFloatPtr(nodemap_list[camera_number].GetNode('AcquisitionFrameRate'))
             FPS_node.SetValue(FPS_min)
 
