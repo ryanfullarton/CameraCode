@@ -715,6 +715,7 @@ def main(output, config_list):
                     camera_number = 0
                     for camera in camera_list:
                         image_result = camera.GetNextImage(10000) #get image
+                        image_data = image_result.GetNDArray() # Return image array
                         np.save(output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", image_data) # save as numpy .npy file
                         aq_log.write(f'Acquired image {config_parameters_list[camera_number]["CAMERA_VIEW"]} {number}: {datetime.now()} \n')
                         image_result.Release()
