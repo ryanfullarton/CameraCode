@@ -705,7 +705,7 @@ def main(output, config_list):
                         node_line_mode.SetIntValue(line_mode_output.GetValue())
 
                     print("Trigger Ready\n"
-                          "Press enter to start")
+                          "Press enter to acquire")
                     aq_log.write(f'Trigger Ready: {datetime.now()} \n')
                     input()
                     aq_log.write(f'Started acquisitioin: {datetime.now()} \n')
@@ -725,6 +725,66 @@ def main(output, config_list):
                     print("Image saved")
                     
                 except (KeyboardInterrupt, ps.SpinnakerException):
+                    acquiring = False
+                    print("Acquisition Stopped")
+                
+            ######################################################
+            #               triggered-coninuous                  #
+            ######################################################
+            elif config_parameters_list[0]['ACQUISITION_MODE'].lower() == 'triggered-continuous':
+                try:
+                    for nodemap in nodemap_list:
+                        node_line_selector = ps.CEnumerationPtr(nodemap.GetNode('LineSelector'))
+                        line_output = node_line_selector.GetEntryByName('Line5')
+                        node_line_selector.SetIntValue(line_output.GetValue())
+
+                        node_user_output_select = ps.CEnumerationPtr(nodemap.GetNode('UserOutputSelector'))
+                        line2_value = node_user_output_select.GetEntryByName("UserOutput2")
+                        node_user_output_select.SetIntValue(line2_value.GetValue())
+                        node_user_output_value = ps.CBooleanPtr(nodemap.GetNode('UserOutputValue'))
+                        user_output_value = True
+                        node_user_output_value.SetValue(user_output_value)
+                        
+                        line_output = node_line_selector.GetEntryByName('Line2')
+                        node_line_selector.SetIntValue(line_output.GetValue())
+                        node_line_mode = ps.CEnumerationPtr(nodemap.GetNode('LineMode'))
+                        line_mode_output = node_line_mode.GetEntryByName('Output')
+                        node_line_mode.SetIntValue(line_mode_output.GetValue())
+                        line_source_node = ps.CEnumerationPtr(nodemap.GetNode('LineSource'))
+                        line_source_value = line_source_node.GetEntryByName('Line5')
+                        line_source_node.SetIntValue(line_source_value.GetValue())
+
+                        node_line_selector = ps.CEnumerationPtr(nodemap.GetNode('LineSelector'))
+                        line_output = node_line_selector.GetEntryByName('Line5')
+                        node_line_selector.SetIntValue(line_output.GetValue())
+                    
+                    print("Trigger Ready\n"
+                          "Press enter to acquire")
+                    aq_log.write(f'Trigger Ready: {datetime.now()} \n')
+                    input()
+                    aq_log.write(f'Started acquisitioin: {datetime.now()} \n')
+                    
+
+                    number = leading_zeros(i)
+                    camera_number = 0
+                    for camera in camera_list:
+                        image_result = camera.GetNextImage(10000) #get image
+                        image_data = image_result.GetNDArray() # Return image array
+                        np.save(output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", image_data) # save as numpy .npy file
+                        aq_log.write(f'Acquired image {config_parameters_list[camera_number]["CAMERA_VIEW"]} {number}: {datetime.now()} \n')
+                        image_result.Release()
+                        camera_number+=1
+                    
+                    trigger_value = ps.CBooleanPtr(nodemap_list[0].GetNode('LineStatus')).GetValue()
+                    if not trigger_value:
+                        acquiring = False
+
+                    i+=1 #incremet the number of acquisitions for unique file names
+                    print("Image saved")
+                        
+
+                    
+                except KeyboardInterrupt:
                     acquiring = False
                     print("Acquisition Stopped")
             
