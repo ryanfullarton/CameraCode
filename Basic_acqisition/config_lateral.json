@@ -1,5 +1,6 @@
 {
 "SERIAL_NUMBER" : "22092257",
+"CAMERA_ORDER" : 2,
 "CAMERA_VIEW" : "Lateral",
 "EXPOSURE_MODE": "TriggerWidth",
 "ACQUISITION_MODE" : "external",
@@ -16,7 +17,7 @@
 "TRIGGER_SELECTION" : "Acquisitiosntart",
 "TRIGGER_SOURCE" : "Line5",
 "TRIGGER_ACTIVATION" : "LevelHigh",
-"TRIGGER_OVERLAP" : "ReadOut",
+"TRIGGER_OVERLAP" : "TriggerOverlap_ReadOut)",
 "TRIGGER_DELAY" : 12,
 
 "SHUTTER_MODE" : "Global",
@@ -48,7 +49,9 @@
 
 "SHARPENING_ENABLE" : "Off",
 "AUTO_SHARPENING": "False",
-"SHARPENING" : 0
+"SHARPENING" : 0,
+
+"BUFFER_HANDLE": "OldestFirst"
 
 
 }

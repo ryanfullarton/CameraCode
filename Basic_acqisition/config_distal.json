@@ -1,5 +1,6 @@
 {
 "SERIAL_NUMBER" : "22587681",
+"CAMERA_ORDER" : 3,
 "CAMERA_VIEW" : "Distal",
 "EXPOSURE_MODE": "TriggerWidth",
 "ACQUISITION_MODE" : "external",
@@ -16,19 +17,19 @@
 "TRIGGER_SELECTION" : "Acquisitiosntart",
 "TRIGGER_SOURCE" : "Line5",
 "TRIGGER_ACTIVATION" : "LevelHigh",
-"TRIGGER_OVERLAP" : "ReadOut",
+"TRIGGER_OVERLAP" : "TriggerOverlap_ReadOut)",
 "TRIGGER_DELAY" : 12,
 
 "SHUTTER_MODE" : "Global",
 
-"WIDTH" : 520,
-"HEIGHT" : 520,
+"WIDTH" : 480,
+"HEIGHT" : 490,
 
-"OFFSET_X" : 368,
-"OFFSET_Y" : 244,
+"OFFSET_X" : 392,
+"OFFSET_Y" : 246,
 
 "BIT_DEPTH" : "Mono8",
-"ADC_BIT_DEPTH" : "Bit10",
+"ADC_BIT_DEPTH" : "Bit8",
 
 "ISP" : "False",
 "BINNING_SELECTOR" : "All",
@@ -48,7 +49,9 @@
 
 "SHARPENING_ENABLE" : "Off",
 "AUTO_SHARPENING": "False",
-"SHARPENING" : 0
+"SHARPENING" : 0,
+
+"BUFFER_HANDLE": "OldestFirst"
 
 
 }
