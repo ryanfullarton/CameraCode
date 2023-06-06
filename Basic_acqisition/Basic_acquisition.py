@@ -5,7 +5,6 @@ import json
 import sys
 import numpy as np
 from datetime import datetime
-import multiprocessing as mp
 
 def write_log_file(nodemap, config_parameters,SN, output):
 
@@ -16,11 +15,12 @@ def write_log_file(nodemap, config_parameters,SN, output):
         FPS_aq = ps.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate')).GetValue()
         FPS_res = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate')).GetValue()
         SN = ps.CStringPtr(nodemap.GetNode('DeviceSerialNumber')).GetValue()
+        camera_order = config_parameters["CAMERA_ORDER"]
         exposure_mode = ps.CEnumerationPtr(nodemap.GetNode('ExposureMode')).GetCurrentEntry().GetDisplayName()
         trigger_source = ps.CEnumerationPtr(nodemap.GetNode('TriggerSource')).GetCurrentEntry().GetDisplayName()
         if config_parameters['ACQUISITION_MODE'].lower() == 'external':
             trigger_activation = ps.CEnumerationPtr(nodemap.GetNode('TriggerActivation')).GetCurrentEntry().GetDisplayName()
-        #trigger_overlap = ps.CEnumerationPtr(nodemap.GetNode('TriggerOverlap')).GetCurrentEntry().GetDisplayName()
+        trigger_overlap = ps.CEnumerationPtr(nodemap.GetNode('TriggerOverlap')).GetCurrentEntry().GetDisplayName()
         trigger_delay = ps.CFloatPtr(nodemap.GetNode('TriggerDelay')).GetValue()
         shutter_mode = ps.CEnumerationPtr(nodemap.GetNode('SensorShutterMode')).GetCurrentEntry().GetDisplayName()
         gain_selector = ps.CEnumerationPtr(nodemap.GetNode('GainSelector')).GetCurrentEntry().GetDisplayName()
@@ -47,11 +47,13 @@ def write_log_file(nodemap, config_parameters,SN, output):
         decimation_method = ps.CEnumerationPtr(nodemap.GetNode('DecimationHorizontalMode')).GetCurrentEntry().GetDisplayName()
         hoz_decimation = ps.CIntegerPtr(nodemap.GetNode('DecimationHorizontal')).GetValue()
         vert_decimation = ps.CIntegerPtr(nodemap.GetNode('DecimationHorizontal')).GetValue()
+        buffer_handle = ps.CEnumerationPtr(nodemap.GetNode('StreamBufferHandlingMode')).GetCurrentEntry().GetDisplayName()
 
         t = time.localtime()
         log.write('Acquisition Time: ')
         log.write(time.strftime("%H:%M:%S", t) +' \n')
         log.write(f'Serial Number: {SN} \n')
+        log.write(f'Camera Order: {camera_order} \n')
         log.write(f"Camera View: {config_parameters['CAMERA_VIEW']} \n")
         log.write(f"Acquisition Mode: {config_parameters['ACQUISITION_MODE']} \n")
         if config_parameters['ACQUISITION_MODE'].lower() == 'time':
@@ -67,7 +69,7 @@ def write_log_file(nodemap, config_parameters,SN, output):
         if config_parameters['ACQUISITION_MODE'].lower() == 'external':    
             log.write(f'Trigger Source: {trigger_source} \n')
             log.write(f'Trigger Activation: {trigger_activation} \n')
-            #log.write(f'Trigger Overlap: {trigger_overlap} \n')
+            log.write(f'Trigger Overlap: {trigger_overlap} \n')
             log.write(f'Trigger Delay: {trigger_delay} \n \n')
 
         log.write(f'Gain Selector: {gain_selector} \n')
@@ -122,6 +124,8 @@ def write_log_file(nodemap, config_parameters,SN, output):
         log.write(f'Offset Y: {offset_y} \n')
         log.write('\n')
 
+        log.write(f'Buffer Handling: {buffer_handle} \n')
+
         log.write(f'Acquisition FPS: {FPS_aq} \n')
         log.write(f'Resulting FPS: {FPS_res} \n')
         log.close()
@@ -159,7 +163,7 @@ def set_settings(nodemap, config_parameters,output):
     #Trigger overlap TODO - find out exactly what this means??
     node_trigger_overlap = ps.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
     node_trigger_overlap_value =node_trigger_overlap.GetEntryByName(config_parameters['TRIGGER_OVERLAP'])
-    #node_trigger_overlap.SetIntValue(node_trigger_overlap_value.GetValue())
+    node_trigger_overlap.SetIntValue(node_trigger_overlap_value.GetValue())
 
     # Trigger delay - time after trigger activation to start acquisition (microseconds)
     node_trigger_delay = ps.CFloatPtr(nodemap.GetNode('TriggerDelay'))
@@ -364,11 +368,15 @@ def set_settings(nodemap, config_parameters,output):
     node_offsetx = ps.CIntegerPtr(nodemap.GetNode('OffsetX'))
     offsetx_to_set = config_parameters['OFFSET_X']
     node_offsetx.SetValue(offsetx_to_set)
-
+    
     # Image offset in the y direction
     node_offsety = ps.CIntegerPtr(nodemap.GetNode('OffsetY'))
     offsety_to_set = config_parameters['OFFSET_Y']
     node_offsety.SetValue(offsety_to_set)
+
+    buffer_handle = ps.CEnumerationPtr(nodemap.GetNode('StreamBufferHandlingMode'))
+    buffer_handle_mode = node_vert_decimation_mode.GetEntryByName(config_parameters['BUFFER_HANDLE'])
+    buffer_handle.SetIntValue(buffer_handle_mode.GetValue())
 
     #Return the Frame rate of resulting from the acquisition parameters
     FPS_aq = ps.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate')).GetValue()
@@ -413,12 +421,6 @@ def leading_zeros(i):
     
     return number
 
-def acquire_image(camera, filename,):
-    image_result = camera.GetNextImage(9000) #get image
-    image_data = image_result.GetNDArray()
-    np.save(filename, image_data) # save as numpy .npy file
-    image_result.Release()
-
 def main(output, config_list):
     """
         Main function that takes in the config file and output directory
@@ -443,7 +445,7 @@ def main(output, config_list):
                 config_parameters_list.append(json.load(f1))
         
             try:
-                os.mkdir(output + config_parameters_list[i]["CAMERA_VIEW"])
+                os.mkdir(output + config_parameters_list[camera_number]["CAMERA_VIEW"])
             except FileExistsError:
                 pass
             camera_number+=1
@@ -457,17 +459,18 @@ def main(output, config_list):
         cam_list = system.GetCameras()
         for i, cam in enumerate(cam_list):
             camera_list.append(cam)
-        
-        temp_config_list = []
+        temp_config_list=[]
+        ordered_camera_list = [None] * len(camera_list)
+        FPS_min=1000
         for camera in camera_list:
             camera.Init()
             temp_nodemap = camera.GetNodeMap()
             camera_SN = ps.CStringPtr(temp_nodemap.GetNode('DeviceSerialNumber')).GetValue()
-            min_FPS = 1000
             camera.DeInit()
             for config_parameters in config_parameters_list:
                 if camera_SN == config_parameters['SERIAL_NUMBER']:
                     #Define camera 1 as a camera object within the API and initilise it
+                    ordered_camera_list[config_parameters['CAMERA_ORDER']] = camera
                     camera.Init()
                     #return the node map to set acquisition parameters
                     nodemap = camera.GetNodeMap()
@@ -480,23 +483,26 @@ def main(output, config_list):
                         FPS_min = FPS_res
         #orders config parameters in the same order as camera list
         config_parameters_list = temp_config_list
-        i=0
+        camera_list=ordered_camera_list
+        camera_number=0
         for camera in camera_list:
-            node_frame_rate_enable = ps.CBooleanPtr(nodemap_list[i].GetNode('AcquisitionFrameRateEnable'))
+            node_frame_rate_enable = ps.CBooleanPtr(nodemap_list[camera_number].GetNode('AcquisitionFrameRateEnable'))
             frame_rate_enable = True
             node_frame_rate_enable.SetValue(frame_rate_enable)
 
-            FPS_node = ps.CFloatPtr(nodemap_list[i].GetNode('AcquisitionFrameRate'))
+            FPS_node = ps.CFloatPtr(nodemap_list[camera_number].GetNode('AcquisitionFrameRate'))
             FPS_node.SetValue(FPS_min)
-            FPS_res = ps.CFloatPtr(nodemap_list[i].GetNode('AcquisitionResultingFrameRate')).GetValue()
 
-            cam_SN = ps.CStringPtr(nodemap_list[i].GetNode('DeviceSerialNumber')).GetValue()
-            print(f'Camera {i} ({cam_SN}):')
+            FPS_res = ps.CFloatPtr(nodemap_list[camera_number].GetNode('AcquisitionResultingFrameRate')).GetValue()
+            FPS_aq = ps.CFloatPtr(nodemap_list[camera_number].GetNode('AcquisitionFrameRate')).GetValue()
+            cam_SN = ps.CStringPtr(nodemap_list[camera_number].GetNode('DeviceSerialNumber')).GetValue()
+            
+            print(f'Camera {camera_number+1} ({cam_SN}):')
 
-            print(f"Acquisition Frame Rate: {round(FPS_node,0)}   Resulting Frame Rate: {round(FPS_res,0)}")
+            print(f"Acquisition Frame Rate: {round(FPS_aq,0)}   Resulting Frame Rate: {round(FPS_res,0)}")
 
             camera.BeginAcquisition() # start acquisition
-            i+=1
+            camera_number+=1
         
         #Set intialial booleans reqired for acquisition logic
         acquiring = True # is acquiring
@@ -506,16 +512,17 @@ def main(output, config_list):
         start = True # for printing when data is being acquired for trigger mode    
         timeout = (int) ((1./FPS_res) + 60000)
 
-        
+        bg_list = []
         threshold_list = []
         b=0 # set counter for number of background images at 0
-        image_result = camera_list[0].GetNextImage(timeout) #retrieve image from the camera after timeout
-        image_data = image_result.GetNDArray() #retrieve the array of image data
-        bg_arr = np.zeros(image_data.shape,dtype=np.float32) #set background array to match size of image array with value of 0     
-        bg_list = []
-        for camera in cam_list:
+        camera_number = 0
+        for camera in camera_list:
+            image_result = camera_list[camera_number].GetNextImage(timeout) #retrieve image from the camera after timeout
+            image_data = image_result.GetNDArray() #retrieve the array of image data
+            bg_arr = np.zeros(image_data.shape,dtype=np.float32) #set background array to match size of image array with value of 0     
             bg_list.append(bg_arr)
-
+            camera_number+=1
+        camera_number=0
         t_end = time.time() + 10 # Set backqroung acquisition time (10s)
         percentile = 98
         if config_parameters_list[0]["SKIP_BACKGROUND"].lower() !='yes':
@@ -524,7 +531,7 @@ def main(output, config_list):
                 bg_count = 0
                 for camera in cam_list:
                     image_result = camera.GetNextImage(timeout)
-                    image_data = camera.GetNDArray()
+                    image_data = image_result.GetNDArray()
                     bg_list[bg_count] += image_data #add image data to background array
                     image_result.Release() # release image to acquire the next one
                     bg_count +=1
@@ -569,7 +576,7 @@ def main(output, config_list):
             ######################################################
             #               Software trigger                     #
             ######################################################
-            if config_parameters[0]['ACQUISITION_MODE'].lower() == 'trigger': # for acquisition mode trigger
+            if config_parameters_list[0]['ACQUISITION_MODE'].lower() == 'trigger': # for acquisition mode trigger
                 image_array_list = []
                 try: # This puts the whole process within a loop that ends after a keyboard interrupt (Ctrl + C)
                     camera_number = 0
@@ -632,18 +639,14 @@ def main(output, config_list):
                         if start:
                             print("Acquiring data")
                         start=False
-                        number == leading_zeros(i)
-                        for camera in camera_list:
-                            filename = output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy"
-                            globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'] = mp.Process(target=acquire_image, args=(camera,filename))
-                            globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'].start()
-                            aq_log.write(f'{config_parameters_list[camera_number]["CAMERA_VIEW"]} image saved {datetime.now()} \n')
-                            camera_number+=1
-
                         camera_number = 0
                         for camera in camera_list:
-                            globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'].start().join()
+                            image_result = camera.GetNextImage(timeout) # Get image
+                            image_data = image_result.GetNDArray() # Return image array
+                            number = leading_zeros(i)
+                            np.save(output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data) # save image as numpy .npy file
                             camera_number+=1
+                            image_result.Release() # release image so the next one can be allowed to be read
                         aq_log.write(f'Acquired image {number}: {datetime.now()} \n')
                         i+=1 # increment the acquisition counter for unique file names
                     print("Acqiusition stopped")
@@ -666,16 +669,10 @@ def main(output, config_list):
                     number = leading_zeros(i)
                     camera_number=0
                     for camera in camera_list:
-                        filename = output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy"
-                        globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'] = mp.Process(target=acquire_image, args=(camera,filename))
-                        globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'].start()
-                        aq_log.write(f'{config_parameters_list[camera_number]["CAMERA_VIEW"]} image saved {datetime.now()} \n')
-                        camera_number+=1
-
-                    camera_number = 0
-                    for camera in camera_list:
-                        globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'].start().join()
-                        camera_number+=1
+                        image_result = camera.GetNextImage(timeout) # Get image
+                        image_data = image_result.GetNDArray() # Return image array
+                        np.save(output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "frame_" + number + ".npy", image_data) #save image as numpy .npy file
+                        camera_number +=1
 
                     aq_log.write(f'Acquired frame {number}: {datetime.now()} \n')
                     i+=1 # increment acquisition counter for unique file names
@@ -687,7 +684,7 @@ def main(output, config_list):
             ######################################################
             #               External trigger                     #
             ######################################################
-            elif config_parameters_list[camera_list]['ACQUISITION_MODE'].lower() == 'external':
+            elif config_parameters_list[0]['ACQUISITION_MODE'].lower() == 'external':
                 try:
                     for nodemap in nodemap_list:
                         node_line_selector = ps.CEnumerationPtr(nodemap.GetNode('LineSelector'))
@@ -707,27 +704,26 @@ def main(output, config_list):
                         line_mode_output = node_line_mode.GetEntryByName('Output')
                         node_line_mode.SetIntValue(line_mode_output.GetValue())
 
-                    print("Trigger Ready")
+                    print("Trigger Ready\n"
+                          "Press enter to start")
                     aq_log.write(f'Trigger Ready: {datetime.now()} \n')
+                    input()
+                    aq_log.write(f'Started acquisitioin: {datetime.now()} \n')
+                    
 
                     number = leading_zeros(i)
                     camera_number = 0
                     for camera in camera_list:
-                        filename = output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy"
-                        globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'] = mp.Process(target=acquire_image, args=(camera,filename))
-                        globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'].start()
-                        aq_log.write(f'{config_parameters_list[camera_number]["CAMERA_VIEW"]} image saved {datetime.now()} \n')
-
-                        camera_number+=1
-                    camera_number = 0
-                    for camera in camera_list:
-                        globals()[f'{config_parameters_list[camera_number]["CAMERA_VIEW"]}_process'].start().join()
+                        image_result = camera.GetNextImage(10000) #get image
+                        np.save(output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "acquisition_" + number + ".npy", image_data) # save as numpy .npy file
+                        aq_log.write(f'Acquired image {config_parameters_list[camera_number]["CAMERA_VIEW"]} {number}: {datetime.now()} \n')
+                        image_result.Release()
                         camera_number+=1
 
                     i+=1 #incremet the number of acquisitions for unique file names
                     print("Image saved")
-                    aq_log.write(f'Acquired image {number}: {datetime.now()} \n')
-                except KeyboardInterrupt:
+                    
+                except (KeyboardInterrupt, ps.SpinnakerException):
                     acquiring = False
                     print("Acquisition Stopped")
             
@@ -737,8 +733,8 @@ def main(output, config_list):
         aq_log.write(f'Acquisition stopped: {datetime.now()} \n')
         print("\nEnd of session")
 
-        time_30 = time.time() + 30
-        while time.time() < time_30:
+        time_10 = time.time() + 10
+        while time.time() < time_10:
             pass
 
         # These commands disconnect the camera and end the PySpin connection removing residual data
@@ -752,8 +748,9 @@ def main(output, config_list):
             camera.DeInit()
             del camera
         del cam
-        cam_list.Clear()
+        cam_list.clear()
         camera_list.clear()
+        ordered_camera_list.clear()
         system.ReleaseInstance()
         aq_log.write(f'Released: {datetime.now()} \n')
         aq_log.close()
