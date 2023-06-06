@@ -17,7 +17,7 @@
 "TRIGGER_SELECTION" : "Acquisitiosntart",
 "TRIGGER_SOURCE" : "Line5",
 "TRIGGER_ACTIVATION" : "LevelHigh",
-"TRIGGER_OVERLAP" : "TriggerOverlap_ReadOut)",
+"TRIGGER_OVERLAP" : "ReadOut)",
 "TRIGGER_DELAY" : 12,
 
 "SHUTTER_MODE" : "Global",
