@@ -6,8 +6,10 @@ import os
 
 def undistort_function(img, calibration_matrix, dist_coeffs, crop):
     #load in calibration matrix and distortion coefficients
-    mtx = np.load(calibration_matrix)
-    dist = np.load(dist_coeffs)
+    mtx = np.loadtxt(calibration_matrix,delimiter=',', comments =';')
+
+    dist = np.loadtxt(dist_coeffs,delimiter=',', comments =';')
+
 
     #get shape of distorted image
     h,  w = img.shape[:2]

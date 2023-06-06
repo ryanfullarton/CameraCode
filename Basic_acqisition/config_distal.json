@@ -1,18 +1,18 @@
 {
-"SERIAL_NUMBER" : "21119929",
-"CAMERA_ORDER" : 1,
-"CAMERA_VIEW" : "Top",
+"SERIAL_NUMBER" : "22587681",
+"CAMERA_ORDER" : 3,
+"CAMERA_VIEW" : "Distal",
 "EXPOSURE_MODE": "TriggerWidth",
 "ACQUISITION_MODE" : "external",
 "ACQUISITON_TIME": 1, 
-"SKIP_BACKGROUND": "NO",
+"SKIP_BACKGROUND": "YES",
 
 "AUTO_EXPOSURE" : "Off",
 "EXPOSURE" : 1000,
 
 "GAIN_SELECTOR" : "All",
 "AUTO_GAIN" : "Off",
-"GAIN" : 36.5,
+"GAIN" : 22,
 
 "TRIGGER_SELECTION" : "Acquisitiosntart",
 "TRIGGER_SOURCE" : "Line5",
@@ -22,11 +22,11 @@
 
 "SHUTTER_MODE" : "Global",
 
-"WIDTH" : 600,
-"HEIGHT" : 488,
+"WIDTH" : 480,
+"HEIGHT" : 490,
 
-"OFFSET_X" : 320,
-"OFFSET_Y" : 278,
+"OFFSET_X" : 392,
+"OFFSET_Y" : 246,
 
 "BIT_DEPTH" : "Mono8",
 "ADC_BIT_DEPTH" : "Bit8",

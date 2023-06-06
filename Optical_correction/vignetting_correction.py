@@ -7,7 +7,8 @@ import os
 
 def vingetting_correction(im, calibration_matrix_file):
     #load calibration matrix
-    calibration_matrix = np.load(calibration_matrix_file)
+    calibration_matrix = np.loadtxt(calibration_matrix_file,delimiter=',', comments =';')
+
 
     #create focal length and center variables
     f_x = calibration_matrix[0,0]

@@ -3,6 +3,7 @@ import cv2 as cv
 import glob
 import sys
 import os
+import cv2 as cv
 from undistort_image import undistort_function
 from vignetting_correction import vingetting_correction
 #from projection_correction import projection_correction
@@ -19,7 +20,7 @@ def main(image_folder, format, calibration_matrix, distortion_coefficients):
 
     image_files = glob.glob(image_folder + '*' + format)
     for file in image_files:
-        image = np.load(file)
+        image = cv.imread(file) #np.load(file)
         image = np.array(image,dtype=np.uint16)
         filename = file.split('/')[-1][:-len(format)]
         #image = projection_correction(image)
