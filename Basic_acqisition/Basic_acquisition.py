@@ -17,6 +17,7 @@ def write_log_file(nodemap, s_nodemap, config_parameters,SN, output):
         SN = ps.CStringPtr(nodemap.GetNode('DeviceSerialNumber')).GetValue()
         camera_order = config_parameters["CAMERA_ORDER"]
         exposure_mode = ps.CEnumerationPtr(nodemap.GetNode('ExposureMode')).GetCurrentEntry().GetDisplayName()
+        trigger_selector = ps.CEnumerationPtr(nodemap.GetNode('TriggerSelector')).GetCurrentEntry().GetDisplayName()
         trigger_source = ps.CEnumerationPtr(nodemap.GetNode('TriggerSource')).GetCurrentEntry().GetDisplayName()
         if config_parameters['ACQUISITION_MODE'].lower() == 'external':
             trigger_activation = ps.CEnumerationPtr(nodemap.GetNode('TriggerActivation')).GetCurrentEntry().GetDisplayName()
@@ -48,6 +49,8 @@ def write_log_file(nodemap, s_nodemap, config_parameters,SN, output):
         hoz_decimation = ps.CIntegerPtr(nodemap.GetNode('DecimationHorizontal')).GetValue()
         vert_decimation = ps.CIntegerPtr(nodemap.GetNode('DecimationHorizontal')).GetValue()
         buffer_handle = ps.CEnumerationPtr(s_nodemap.GetNode('StreamBufferHandlingMode')).GetCurrentEntry().GetDisplayName()
+        
+
 
         t = time.localtime()
         log.write('Acquisition Time: ')
@@ -69,6 +72,7 @@ def write_log_file(nodemap, s_nodemap, config_parameters,SN, output):
         if config_parameters['ACQUISITION_MODE'].lower() == 'external':    
             log.write(f'Trigger Source: {trigger_source} \n')
             log.write(f'Trigger Activation: {trigger_activation} \n')
+            log.write(f'Trigger Selection: {trigger_selector} /n')
             log.write(f'Trigger Overlap: {trigger_overlap} \n')
             log.write(f'Trigger Delay: {trigger_delay} \n \n')
 
@@ -124,7 +128,7 @@ def write_log_file(nodemap, s_nodemap, config_parameters,SN, output):
         log.write(f'Offset Y: {offset_y} \n')
         log.write('\n')
 
-        log.write(f'Buffer Handling: {buffer_handle} \n')
+        log.write(f'Buffer Handling: {buffer_handle} \n \n')
 
         log.write(f'Acquisition FPS: {FPS_aq} \n')
         log.write(f'Resulting FPS: {FPS_res} \n')
@@ -170,10 +174,14 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
     node_trigger_delay_value = config_parameters['TRIGGER_DELAY']
     node_trigger_delay.SetValue(node_trigger_delay_value)
 
+    node_trigger_selector = ps.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
+    node_trigger_selector_value = node_trigger_selector.GetEntryByName(config_parameters["TRIGER_SELECTION"])
+    node_trigger_selector.SetIntValue(node_trigger_selector_value.GetValue())
+
     node_trigger_mode = ps.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
     if config_parameters['ACQUISITION_MODE'].lower() == 'external':
         trigger_mode_set = node_trigger_mode.GetEntryByName('On')
-        #node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
+        node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
             
         #Trigger activation point
         node_trigger_activation = ps.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
@@ -189,7 +197,7 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
         node_line_input.SetIntValue(line_input.GetValue())
     else:
         trigger_mode_set = node_trigger_mode.GetEntryByName('Off')
-#        node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
+        node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
     
 
     node_shutter_mode = ps.CEnumerationPtr(nodemap.GetNode('SensorShutterMode'))
