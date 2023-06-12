@@ -391,6 +391,10 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
     buffer_handle_mode = buffer_handle.GetEntryByName(config_parameters['BUFFER_HANDLE'])
     buffer_handle.SetIntValue(buffer_handle_mode.GetValue())
 
+    buffer_limit = ps.CEnumerationPtr(s_nodemap.GetNode('StreamBufferCountManual'))
+    buffer_limit_value = 50
+    buffer_limit.SetIntValue(buffer_limit_value)
+
     #Return the Frame rate of resulting from the acquisition parameters
     FPS_aq = ps.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate')).GetValue()
     FPS_res = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate')).GetValue()
