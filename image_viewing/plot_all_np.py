@@ -30,7 +30,7 @@ else:
     
     for file in files:
         im = np.int32(np.load(file))
-        plt.imshow(im)
+        plt.imshow(im, vmin=0)
         plt.title(file.split('/')[-1][0:-4])
         plt.pause(delay)
         plt.clf()
