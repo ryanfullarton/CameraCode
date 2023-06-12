@@ -571,7 +571,7 @@ def main(output, config_list):
         
         camera_number = 0
         for camera in camera_list:
-            if config_parameters_list[camera_number]['ACQUISITION_MODE'].lower() == 'external':
+            if config_parameters_list[camera_number]['ACQUISITION_MODE'].lower() == 'external' or config_parameters_list[camera_number]['ACQUISITION_MODE'] == 'triggered-continuous':
                 camera.EndAcquisition()
                 #Change back to timed mode no matter what otherwise a background can't be taken
                 node_exposure_mode = ps.CEnumerationPtr(nodemap_list[camera_number].GetNode('ExposureMode'))
