@@ -19,9 +19,12 @@ def write_log_file(nodemap, s_nodemap, config_parameters,SN, output):
         exposure_mode = ps.CEnumerationPtr(nodemap.GetNode('ExposureMode')).GetCurrentEntry().GetDisplayName()
         trigger_selector = ps.CEnumerationPtr(nodemap.GetNode('TriggerSelector')).GetCurrentEntry().GetDisplayName()
         trigger_source = ps.CEnumerationPtr(nodemap.GetNode('TriggerSource')).GetCurrentEntry().GetDisplayName()
-        if config_parameters['ACQUISITION_MODE'].lower() == 'external':
+        if config_parameters['ACQUISITION_MODE'].lower() == 'external' or config_parameters['ACQUISITION_MODE'] == 'triggered-continuous':
             trigger_activation = ps.CEnumerationPtr(nodemap.GetNode('TriggerActivation')).GetCurrentEntry().GetDisplayName()
-        trigger_overlap = ps.CEnumerationPtr(nodemap.GetNode('TriggerOverlap')).GetCurrentEntry().GetDisplayName()
+        try:
+            trigger_overlap = ps.CEnumerationPtr(nodemap.GetNode('TriggerOverlap')).GetCurrentEntry().GetDisplayName()
+        except:
+            trigger_overlap = 'Not readable'
         trigger_delay = ps.CFloatPtr(nodemap.GetNode('TriggerDelay')).GetValue()
         shutter_mode = ps.CEnumerationPtr(nodemap.GetNode('SensorShutterMode')).GetCurrentEntry().GetDisplayName()
         gain_selector = ps.CEnumerationPtr(nodemap.GetNode('GainSelector')).GetCurrentEntry().GetDisplayName()
@@ -69,10 +72,10 @@ def write_log_file(nodemap, s_nodemap, config_parameters,SN, output):
                 log.write(f'Exposure Time: {exposure_time} \n \n')
 
         log.write(f'Shutter Mode: {shutter_mode} \n \n')
-        if config_parameters['ACQUISITION_MODE'].lower() == 'external':    
+        if config_parameters['ACQUISITION_MODE'].lower() == 'external' or config_parameters['ACQUISITION_MODE'] == 'triggered-continuous':    
             log.write(f'Trigger Source: {trigger_source} \n')
             log.write(f'Trigger Activation: {trigger_activation} \n')
-            log.write(f'Trigger Selection: {trigger_selector} /n')
+            log.write(f'Trigger Selection: {trigger_selector} \n')
             log.write(f'Trigger Overlap: {trigger_overlap} \n')
             log.write(f'Trigger Delay: {trigger_delay} \n \n')
 
@@ -108,7 +111,7 @@ def write_log_file(nodemap, s_nodemap, config_parameters,SN, output):
         log.write('\n')
 
         log.write(f'ISP: {ISP} \n')
-        log.write('\n)')
+        log.write('\n')
 
         log.write(f'Bin Selector: {binning_selector} \n')
         log.write(f'Bin Mode: {bin_mode} \n')
@@ -164,41 +167,43 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
     node_trigger_source_value = node_trigger_source.GetEntryByName(config_parameters['TRIGGER_SOURCE'])
     node_trigger_source.SetIntValue(node_trigger_source_value.GetValue())
 
-    #Trigger overlap TODO - find out exactly what this means??
-    node_trigger_overlap = ps.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
-    node_trigger_overlap_value =node_trigger_overlap.GetEntryByName(config_parameters['TRIGGER_OVERLAP'])
-    node_trigger_overlap.SetIntValue(node_trigger_overlap_value.GetValue())
-
     # Trigger delay - time after trigger activation to start acquisition (microseconds)
     node_trigger_delay = ps.CFloatPtr(nodemap.GetNode('TriggerDelay'))
     node_trigger_delay_value = config_parameters['TRIGGER_DELAY']
     node_trigger_delay.SetValue(node_trigger_delay_value)
 
     node_trigger_selector = ps.CEnumerationPtr(nodemap.GetNode('TriggerSelector'))
-    node_trigger_selector_value = node_trigger_selector.GetEntryByName(config_parameters["TRIGER_SELECTION"])
+    node_trigger_selector_value = node_trigger_selector.GetEntryByName(config_parameters["TRIGGER_SELECTION"])
     node_trigger_selector.SetIntValue(node_trigger_selector_value.GetValue())
 
+    if config_parameters['TRIGGER_SELECTION'] == 'AcquisitionStart':
+        #Trigger overlap TODO - find out exactly what this means??
+        node_trigger_overlap = ps.CEnumerationPtr(nodemap.GetNode('TriggerOverlap'))
+        node_trigger_overlap_value =node_trigger_overlap.GetEntryByName(config_parameters['TRIGGER_OVERLAP'])
+        node_trigger_overlap.SetIntValue(node_trigger_overlap_value.GetValue())
+
+
     node_trigger_mode = ps.CEnumerationPtr(nodemap.GetNode('TriggerMode'))
-    if config_parameters['ACQUISITION_MODE'].lower() == 'external':
+    if config_parameters['EXPOSURE_MODE'] == 'Timed' and config_parameters['ACQUISITION_MODE'].lower() == 'triggered-continuous':
         trigger_mode_set = node_trigger_mode.GetEntryByName('On')
         node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
-            
-        #Trigger activation point
-        node_trigger_activation = ps.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
-        node_trigger_activation_value = node_trigger_activation.GetEntryByName(config_parameters['TRIGGER_ACTIVATION'])
-        node_trigger_activation.SetIntValue(node_trigger_activation_value.GetValue())
-
-        node_line_selector = ps.CEnumerationPtr(nodemap.GetNode('LineSelector'))
-        line_selector_trigger = node_line_selector.GetEntryByName('Line5')
-        node_line_selector.SetIntValue(line_selector_trigger.GetValue())
-
-        node_line_input = ps.CEnumerationPtr(nodemap.GetNode('LineMode'))
-        line_input = node_line_input.GetEntryByName('Input')
-        node_line_input.SetIntValue(line_input.GetValue())
-    else:
+        
+    elif config_parameters['EXPOSURE_MODE'] =='Timed':
         trigger_mode_set = node_trigger_mode.GetEntryByName('Off')
         node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
-    
+            #Trigger activation point
+    node_trigger_activation = ps.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
+    node_trigger_activation_value = node_trigger_activation.GetEntryByName(config_parameters['TRIGGER_ACTIVATION'])
+    node_trigger_activation.SetIntValue(node_trigger_activation_value.GetValue())
+
+    node_line_selector = ps.CEnumerationPtr(nodemap.GetNode('LineSelector'))
+    line_selector_trigger = node_line_selector.GetEntryByName('Line5')
+    node_line_selector.SetIntValue(line_selector_trigger.GetValue())
+
+    node_line_input = ps.CEnumerationPtr(nodemap.GetNode('LineMode'))
+    line_input = node_line_input.GetEntryByName('Input')
+    node_line_input.SetIntValue(line_input.GetValue())
+
 
     node_shutter_mode = ps.CEnumerationPtr(nodemap.GetNode('SensorShutterMode'))
     node_shutter_mode_value = node_shutter_mode.GetEntryByName(config_parameters['SHUTTER_MODE'])
@@ -467,8 +472,9 @@ def main(output, config_list):
         cam_list = system.GetCameras()
         for i, cam in enumerate(cam_list):
             camera_list.append(cam)
-        temp_config_list=[]
+        temp_config_list=[None] * len(config_parameters_list)
         ordered_camera_list = [None] * len(camera_list)
+        nodemap_list = [None] * len(camera_list)
         FPS_min=1000
         for camera in camera_list:
             camera.Init()
@@ -478,13 +484,13 @@ def main(output, config_list):
             for config_parameters in config_parameters_list:
                 if camera_SN == config_parameters['SERIAL_NUMBER']:
                     #Define camera 1 as a camera object within the API and initilise it
-                    ordered_camera_list[config_parameters['CAMERA_ORDER']] = camera
+                    ordered_camera_list[config_parameters['CAMERA_ORDER']-1] = camera
                     camera.Init()
                     #return the node map to set acquisition parameters
                     nodemap = camera.GetNodeMap()
                     s_nodemap = camera.GetTLStreamNodeMap()
-                    nodemap_list.append(nodemap)
-                    temp_config_list.append(config_parameters)
+                    nodemap_list[config_parameters['CAMERA_ORDER']-1] = nodemap
+                    temp_config_list[config_parameters['CAMERA_ORDER']-1] = config_parameters
                     #Set the acquisiton paraeters and return the frame rate (see above function)
                     
                     FPS_aq, FPS_res = set_settings(nodemap, config_parameters, s_nodemap, output)
@@ -537,7 +543,7 @@ def main(output, config_list):
             print('Acquiring Background')
             while time.time()<t_end: # Acquire backgroun averaging over t_end
                 bg_count = 0
-                for camera in cam_list:
+                for camera in camera_list:
                     image_result = camera.GetNextImage(timeout)
                     image_data = image_result.GetNDArray()
                     bg_list[bg_count] += image_data #add image data to background array
@@ -711,13 +717,13 @@ def main(output, config_list):
                         node_line_mode = ps.CEnumerationPtr(nodemap.GetNode('LineMode'))
                         line_mode_output = node_line_mode.GetEntryByName('Output')
                         node_line_mode.SetIntValue(line_mode_output.GetValue())
-
-                    print("Trigger Ready\n"
-                          "Press enter to acquire")
-                    aq_log.write(f'Trigger Ready: {datetime.now()} \n')
-                    input()
-                    aq_log.write(f'Started acquisitioin: {datetime.now()} \n')
-                    
+                    if first:
+                        print("Trigger Ready\n"
+                              "Press enter to acquire")
+                        aq_log.write(f'Trigger Ready: {datetime.now()} \n')
+                        input()
+                        aq_log.write(f'Started acquisitioin: {datetime.now()} \n')
+                        first = False
 
                     number = leading_zeros(i)
                     camera_number = 0
@@ -766,12 +772,14 @@ def main(output, config_list):
                         line_output = node_line_selector.GetEntryByName('Line5')
                         node_line_selector.SetIntValue(line_output.GetValue())
                     
-                    print("Trigger Ready\n"
+                    if first:
+
+                        print("Trigger Ready\n"
                           "Press enter to acquire")
-                    aq_log.write(f'Trigger Ready: {datetime.now()} \n')
-                    input()
-                    aq_log.write(f'Started acquisitioin: {datetime.now()} \n')
-                    
+                        aq_log.write(f'Trigger Ready: {datetime.now()} \n')
+                        input()
+                        aq_log.write(f'Started acquisitioin: {datetime.now()} \n')
+                        first = False
 
                     number = leading_zeros(i)
                     camera_number = 0
@@ -784,7 +792,9 @@ def main(output, config_list):
                         camera_number+=1
                     
                     trigger_value = ps.CBooleanPtr(nodemap_list[0].GetNode('LineStatus')).GetValue()
-                    if not trigger_value:
+                    if trigger_value:
+                        triggered =True
+                    if triggered  and not trigger_value:
                         acquiring = False
 
                     i+=1 #incremet the number of acquisitions for unique file names
@@ -817,7 +827,7 @@ def main(output, config_list):
             camera.DeInit()
             del camera
         del cam
-        cam_list.clear()
+        cam_list.Clear()
         camera_list.clear()
         ordered_camera_list.clear()
         system.ReleaseInstance()
