@@ -188,7 +188,7 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
         trigger_mode_set = node_trigger_mode.GetEntryByName('On')
         node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
         
-    elif config_parameters['EXPOSURE_MODE'] =='Timed':
+    else:
         trigger_mode_set = node_trigger_mode.GetEntryByName('Off')
         node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
             #Trigger activation point
@@ -391,9 +391,9 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
     buffer_handle_mode = buffer_handle.GetEntryByName(config_parameters['BUFFER_HANDLE'])
     buffer_handle.SetIntValue(buffer_handle_mode.GetValue())
 
-    buffer_limit = ps.CEnumerationPtr(s_nodemap.GetNode('StreamBufferCountManual'))
+    buffer_limit = ps.CIntegerPtr(s_nodemap.GetNode('StreamBufferCountManual'))
     buffer_limit_value = 50
-    buffer_limit.SetIntValue(buffer_limit_value)
+    buffer_limit.SetValue(buffer_limit_value)
 
     #Return the Frame rate of resulting from the acquisition parameters
     FPS_aq = ps.CFloatPtr(nodemap.GetNode('AcquisitionFrameRate')).GetValue()
@@ -408,6 +408,9 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
     node_exposure_mode = ps.CEnumerationPtr(nodemap.GetNode('ExposureMode'))
     exposure_mode_set = node_exposure_mode.GetEntryByName('Timed')
     node_exposure_mode.SetIntValue(exposure_mode_set.GetValue())
+
+    trigger_mode_set = node_trigger_mode.GetEntryByName('Off')
+    node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
 
     #Auto exposure on or off
     node_exposure_auto = ps.CEnumerationPtr(nodemap.GetNode('ExposureAuto'))
@@ -529,21 +532,21 @@ def main(output, config_list):
         triggered = False #Acquisition trigger for trigger mode off
         start = True # for printing when data is being acquired for trigger mode    
         timeout = (int) ((1./FPS_res) + 60000)
-
-        bg_list = []
-        threshold_list = []
-        b=0 # set counter for number of background images at 0
-        camera_number = 0
-        for camera in camera_list:
-            image_result = camera_list[camera_number].GetNextImage(timeout) #retrieve image from the camera after timeout
-            image_data = image_result.GetNDArray() #retrieve the array of image data
-            bg_arr = np.zeros(image_data.shape,dtype=np.float32) #set background array to match size of image array with value of 0     
-            bg_list.append(bg_arr)
-            camera_number+=1
-        camera_number=0
-        t_end = time.time() + 10 # Set backqroung acquisition time (10s)
-        percentile = 98
         if config_parameters_list[0]["SKIP_BACKGROUND"].lower() !='yes':
+            bg_list = []
+            threshold_list = []
+            b=0 # set counter for number of background images at 0
+            camera_number = 0
+            for camera in camera_list:
+                image_result = camera_list[camera_number].GetNextImage(timeout) #retrieve image from the camera after timeout
+                image_data = image_result.GetNDArray() #retrieve the array of image data
+                bg_arr = np.zeros(image_data.shape,dtype=np.float32) #set background array to match size of image array with value of 0     
+                bg_list.append(bg_arr)
+                camera_number+=1
+            camera_number=0
+            t_end = time.time() + 10 # Set backqroung acquisition time (10s)
+            percentile = 98
+            
             print('Acquiring Background')
             while time.time()<t_end: # Acquire backgroun averaging over t_end
                 bg_count = 0
@@ -554,11 +557,17 @@ def main(output, config_list):
                     image_result.Release() # release image to acquire the next one
                     bg_count +=1
                 b+=1 # increment counter to track number of images involved in background
-            
+                
             for bg in bg_list:
                 bg = bg/b
                 threshold_list.append(2*np.percentile(bg, percentile)) # Set add percentile of pixel values to the threshold
-
+            camera_number = 0
+            
+            for camera in cam_list:
+                np.save(output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "Background" + ".npy", bg_list[camera_number]) #save background array as a numpy .npy file
+                camera_number+=1
+        
+            camera_number = 0
             aq_log.write(f'Background acquired: {datetime.now()} \n')
         else:
             print('Background skipped')
@@ -568,12 +577,7 @@ def main(output, config_list):
 
             aq_log.write(f'Background skipped: {datetime.now()} \n')
 
-        camera_number = 0
-        for camera in cam_list:
-            np.save(output + config_parameters_list[camera_number]["CAMERA_VIEW"] + "/" + "Background" + ".npy", bg_list[camera_number]) #save background array as a numpy .npy file
-            camera_number+=1
         
-        camera_number = 0
         for camera in camera_list:
             if config_parameters_list[camera_number]['ACQUISITION_MODE'].lower() == 'external' or config_parameters_list[camera_number]['ACQUISITION_MODE'] == 'triggered-continuous':
                 camera.EndAcquisition()
@@ -581,7 +585,10 @@ def main(output, config_list):
                 node_exposure_mode = ps.CEnumerationPtr(nodemap_list[camera_number].GetNode('ExposureMode'))
                 exposure_mode_set = node_exposure_mode.GetEntryByName(config_parameters_list[camera_number]['EXPOSURE_MODE'])
                 node_exposure_mode.SetIntValue(exposure_mode_set.GetValue())
-                node_trigger_mode = nodemap_list[camera_number].GetNode('TriggerMode')
+                if config_parameters_list[camera_number]["ACQUISITION_MODE"] == 'triggered-continuous':
+                    node_trigger_mode = nodemap_list[camera_number].GetNode('TriggerMode')
+                    trigger_mode_set = node_trigger_mode.GetEntryByName('On')
+                    node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
                 camera.BeginAcquisition()
                 camera_number+=1
         
