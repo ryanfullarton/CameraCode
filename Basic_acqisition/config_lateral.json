@@ -12,7 +12,7 @@
 
 "GAIN_SELECTOR" : "All",
 "AUTO_GAIN" : "Off",
-"GAIN" : 35.2,
+"GAIN" : 20,
 
 "TRIGGER_SELECTION" : "FrameStart",
 "TRIGGER_SOURCE" : "Line5",
@@ -25,8 +25,8 @@
 "WIDTH" : 600,
 "HEIGHT" : 484,
 
-"OFFSET_X" : 328,
-"OFFSET_Y" : 288,
+"OFFSET_X" : 336,
+"OFFSET_Y" : 280,
 
 "BIT_DEPTH" : "Mono8",
 "ADC_BIT_DEPTH" : "Bit8",
