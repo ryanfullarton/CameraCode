@@ -400,6 +400,11 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
     FPS_res = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate')).GetValue()
 
     
+    if FPS_res < FPS_aq:
+        FPS_res_node = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate'))
+        FPS_res_node.SetValue(FPS_aq)
+        FPS_res = FPS_res_node.GetValue()
+
     print(f'Generating log file for {SN}')
 
     write_log_file(nodemap, s_nodemap, config_parameters, SN, output)
