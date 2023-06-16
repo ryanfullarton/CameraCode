@@ -97,13 +97,30 @@ for beam in beam_sequence:
     pos_x = np.arange((-x_field_list[i]/2)+(spot_spacing_x/2)+field_offset_x_list[i],(x_field_list[i]/2)+field_offset_x_list[i], spot_spacing_x)
     pos_y = np.arange((-y_field_list[i]/2)+(spot_spacing_y/2)+field_offset_y_list[i],(y_field_list[i]/2)+field_offset_y_list[i], spot_spacing_y)
     if pattern_scan:
-        for it in range(0,len(pos_x)):
-            for x in range(0,len(pos_x)):
-                for position in range(0,int(y_field_list[i]),50):
-                    for y in range(0,len(pos_y)):
-                        if y == position:
-                            spot_list.append(pos_x[x-it])
-                            spot_list.append(pos_y[y-it])
+        in_list = []
+        # for it in range(0,len(pos_x)):
+        #     for x in range(0,len(pos_x)):
+        #         for position in range(0,int(y_field_list[i]),30):
+        #             for y in range(0,len(pos_y)):
+        #                 if y == position:
+        #                     pair = (pos_x[x-it],pos_y[y-it])
+        #                     if pair not in in_list:
+        #                         in_list.append(pair)
+        #                         spot_list.append(pos_x[x-it])
+        #                         spot_list.append(pos_y[y-it])
+        temp_spot_list = []
+        for x in pos_x:
+            for y in pos_y:
+                temp_spot_list.append((x,y))
+                
+        offset = int(30/spot_spacing_x)
+        for start_point in range(0, offset):
+            sub_spot_list = temp_spot_list[start_point:len(temp_spot_list):offset]
+            for sub_spot in sub_spot_list:
+                spot_list.append(sub_spot[0])
+                spot_list.append(sub_spot[1])
+
+
     elif raster:
         line = 1
         for position_x in pos_x:
