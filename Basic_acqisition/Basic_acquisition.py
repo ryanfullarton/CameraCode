@@ -357,6 +357,11 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
     node_decimation_vert = ps.CIntegerPtr(nodemap.GetNode('DecimationVertical'))
     decimation_vert = config_parameters['DECIMATION']
     node_decimation_vert.SetValue(decimation_vert)
+    
+    if config_parameters['CAMERA_VIEW'].lower() == "top":
+        flip_vert = ps.CBooleanPtr(nodemap.GetNode('ReverseY'))
+        flip_vert_value = True
+        flip_vert.SetValue(flip_vert_value)
 
     #reset offset to avoid errors
     node_offsetx = ps.CIntegerPtr(nodemap.GetNode('OffsetX'))
