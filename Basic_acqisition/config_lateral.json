@@ -12,7 +12,7 @@
 
 "GAIN_SELECTOR" : "All",
 "AUTO_GAIN" : "Off",
-"GAIN" : 20,
+"GAIN" : 8,
 
 "TRIGGER_SELECTION" : "FrameStart",
 "TRIGGER_SOURCE" : "Line5",
