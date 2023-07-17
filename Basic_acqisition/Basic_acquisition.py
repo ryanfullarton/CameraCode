@@ -188,10 +188,10 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
         trigger_mode_set = node_trigger_mode.GetEntryByName('On')
         node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
         
-    else:
-        trigger_mode_set = node_trigger_mode.GetEntryByName('Off')
-        node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
-            #Trigger activation point
+    # else:
+    #     trigger_mode_set = node_trigger_mode.GetEntryByName('Off')
+    #     node_trigger_mode.SetIntValue(trigger_mode_set.GetValue())
+    #         #Trigger activation point
     node_trigger_activation = ps.CEnumerationPtr(nodemap.GetNode('TriggerActivation'))
     node_trigger_activation_value = node_trigger_activation.GetEntryByName(config_parameters['TRIGGER_ACTIVATION'])
     node_trigger_activation.SetIntValue(node_trigger_activation_value.GetValue())
@@ -405,10 +405,10 @@ def set_settings(nodemap, config_parameters, s_nodemap, output):
     FPS_res = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate')).GetValue()
 
     
-    if FPS_res < FPS_aq:
-        FPS_res_node = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate'))
-        FPS_res_node.SetValue(FPS_aq)
-        FPS_res = FPS_res_node.GetValue()
+    # if FPS_res < FPS_aq:
+    #     FPS_res_node = ps.CFloatPtr(nodemap.GetNode('AcquisitionResultingFrameRate'))
+    #     FPS_res_node.SetValue(FPS_aq)
+    #     FPS_res = FPS_res_node.GetValue()
 
     print(f'Generating log file for {SN}')
 
@@ -567,9 +567,9 @@ def main(output, config_list):
                     image_result.Release() # release image to acquire the next one
                     bg_count +=1
                 b+=1 # increment counter to track number of images involved in background
-                
+            camera_number = 0
             for bg in bg_list:
-                bg = bg/b
+                bg_list[camera_number]=bg_list[camera_number]/b
                 threshold_list.append(2*np.percentile(bg, percentile)) # Set add percentile of pixel values to the threshold
             camera_number = 0
             
